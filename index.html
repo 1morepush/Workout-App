@@ -52,7 +52,7 @@ body::after {
 }
 
 /* ── APP SHELL ───────────────────────────────────── */
-#app { min-height: 100dvh; display: flex; flex-direction: column; padding-bottom: calc(88px + var(--safe-b)); }
+#app { min-height: 100dvh; display: flex; flex-direction: column; padding-bottom: calc(70px + var(--safe-b)); }
 
 /* ── STICKY HEADER SHELL ─────────────────────────── */
 .sticky-shell { position: sticky; top: 0; z-index: 100; background: var(--bg); }
@@ -226,26 +226,21 @@ body::after {
 
 /* rest button */
 .rest-btn {
-  display: flex; align-items: center; justify-content: center; gap: 7px;
-  margin: 10px 12px 12px; padding: 11px 14px;
-  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07);
-  border-radius: 9px; cursor: pointer;
-  transition: background .2s, border-color .2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin: 10px 0 0; padding: 14px;
+  background: rgba(255,255,255,.025); border: none;
+  border-top: 1px solid var(--border); cursor: pointer;
+  transition: background .2s;
 }
-.rest-icon { font-size: 13px; opacity: .6; }
+.rest-icon { font-size: 13px; opacity: .55; }
 .rest-text {
   font-family: 'DM Mono', monospace; font-size: 10.5px;
-  letter-spacing: .14em; text-transform: uppercase; color: var(--text-sub);
+  letter-spacing: .15em; text-transform: uppercase; color: var(--text-sub);
   transition: color .2s;
 }
-.rest-btn.counting {
-  background: color-mix(in srgb, var(--day-color) 8%, transparent);
-  border-color: color-mix(in srgb, var(--day-color) 25%, transparent);
-}
+.rest-btn.counting { background: color-mix(in srgb, var(--day-color) 9%, transparent); }
 .rest-btn.counting .rest-text { color: var(--day-color); }
-.rest-btn.warn {
-  background: rgba(200,85,42,.1); border-color: rgba(200,85,42,.3);
-}
+.rest-btn.warn     { background: rgba(200,85,42,.1); }
 .rest-btn.warn .rest-text { color: var(--rust); animation: blink .7s ease-in-out infinite; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
 
@@ -363,6 +358,103 @@ body::after {
 .dialog-sub   { font-size:13px; color:var(--text-sub); margin-bottom:20px; }
 .dialog-btns  { display:flex; gap:8px; }
 
+/* ── BOTTOM NAV ──────────────────────────────────── */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
+  background: var(--bg-card); border-top: 1px solid var(--border-md);
+  display: flex; padding-bottom: var(--safe-b);
+}
+.nav-tab {
+  flex: 1; background: none; border: none; padding: 11px 8px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; transition: background .15s;
+}
+.nav-tab:active { background: var(--border); }
+.tab-icon  { font-size: 19px; line-height: 1; }
+.tab-label {
+  font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--text-sub); transition: color .2s;
+}
+.nav-tab.active .tab-label { color: var(--day-color); }
+.nav-tab.active .tab-icon  { filter: none; }
+
+/* ── HISTORY PAGE ────────────────────────────────── */
+#historyView { flex: 1; padding: 16px 14px 0; display: none; flex-direction: column; gap: 0; }
+#historyView.show { display: flex; }
+
+.hist-header { margin-bottom: 16px; }
+.hist-title {
+  font-family: 'Bebas Neue', cursive; font-size: 42px;
+  color: var(--text); letter-spacing: .04em; line-height: 1;
+}
+.hist-sub {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  letter-spacing: .15em; color: var(--text-sub); margin-top: 4px;
+}
+
+.hist-empty {
+  text-align: center; padding: 60px 20px;
+  font-size: 14px; color: var(--text-sub); line-height: 1.6;
+}
+.hist-empty-icon { font-size: 36px; margin-bottom: 12px; }
+
+.hist-day-group { margin-bottom: 20px; }
+.hist-month-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--text-sub);
+  padding: 0 2px 8px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
+}
+
+.hist-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px; margin-bottom: 9px; cursor: pointer;
+  transition: border-color .2s;
+}
+.hist-card.expanded { border-color: var(--border-md); }
+.hist-card-top { display: flex; align-items: center; gap: 10px; }
+.hist-date-col { flex: 1; }
+.hist-date {
+  font-family: 'Bebas Neue', cursive; font-size: 20px;
+  color: var(--text); letter-spacing: .04em; line-height: 1;
+}
+.hist-weekday {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  letter-spacing: .15em; color: var(--text-sub); margin-top: 2px;
+}
+.hist-badge {
+  font-family: 'DM Mono', monospace; font-size: 8.5px;
+  letter-spacing: .12em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 3px; flex-shrink: 0;
+}
+.hist-progress-col { text-align: right; flex-shrink: 0; }
+.hist-fraction {
+  font-family: 'DM Mono', monospace; font-size: 13px; color: var(--text-sub);
+}
+.hist-fraction.full { color: var(--gold); }
+.hist-bar-wrap { width: 52px; height: 3px; background: var(--border-md); border-radius: 2px; margin-top: 5px; margin-left: auto; }
+.hist-bar-fill { height: 100%; border-radius: 2px; background: var(--day-color); transition: width .3s; }
+
+.hist-exercises { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; display: none; }
+.hist-card.expanded .hist-exercises { display: block; }
+.hist-ex-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; border-bottom: 1px solid var(--border);
+}
+.hist-ex-row:last-child { border-bottom: none; }
+.hist-ex-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.hist-ex-sets { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-sub); }
+.hist-ex-sets.full { color: var(--gold); }
+.hist-ex-wt { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-sub); margin-left: 8px; }
+
+/* streak chips */
+.hist-stats { display: flex; gap: 8px; margin-bottom: 16px; }
+.stat-chip {
+  flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 10px; text-align: center;
+}
+.stat-num  { font-family: 'Bebas Neue', cursive; font-size: 28px; color: var(--day-color); letter-spacing: .04em; line-height: 1; }
+.stat-lbl  { font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: .15em; text-transform: uppercase; color: var(--text-sub); margin-top: 3px; }
+
 /* ── CARD POP ────────────────────────────────────── */
 @keyframes cardPop { 0%{transform:scale(1)} 45%{transform:scale(1.025)} 100%{transform:scale(1)} }
 .pop { animation: cardPop .28s ease; }
@@ -399,6 +491,19 @@ body::after {
     <button class="fab fab-sm" id="fabReset" title="Reset today">&#8635;</button>
     <button class="fab"        id="fabAdd"   title="Add exercise">+</button>
   </div>
+
+  <div id="historyView"></div>
+
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="nav-tab active" data-tab="train">
+      <span class="tab-icon">🏋️</span>
+      <span class="tab-label">Train</span>
+    </button>
+    <button class="nav-tab" data-tab="history">
+      <span class="tab-icon">📊</span>
+      <span class="tab-label">History</span>
+    </button>
+  </nav>
 </div>
 
 <!-- Add exercise sheet -->
@@ -525,7 +630,12 @@ let timer       = {active:false, secs:90, iv:null, forExId:null};
 function saveAll() { lsSet('wt-plans',workouts); lsSet('wt-done',completions); lsSet('wt-nextid',nextId); }
 
 function getDone(id)   { return (completions[TODAY_STR]||{})[id] || 0; }
-function setDone(id,n) { if (!completions[TODAY_STR]) completions[TODAY_STR]={}; completions[TODAY_STR][id]=n; lsSet('wt-done',completions); }
+function setDone(id,n) {
+  if (!completions[TODAY_STR]) completions[TODAY_STR]={};
+  completions[TODAY_STR][id]=n;
+  lsSet('wt-done',completions);
+  saveHistorySnapshot();
+}
 function findEx(id)    { for (const d of workouts) for (const e of (d.exercises||[])) if (e.id===id) return e; return null; }
 
 function currentDayColor() { return TYPE_COLOR[workouts[viewDay].type] || '#C9A84C'; }
@@ -718,8 +828,7 @@ function buildCard(ex) {
     dot.className = 'dot' + (i < done ? ' done' : '');
     dot.dataset.ex = ex.id;
     dot.dataset.i  = String(i);
-    if (!i < done) dot.textContent = String(i + 1); // number for incomplete
-    if (i >= done) dot.textContent = String(i + 1); // always set number; CSS hides it when done
+    dot.textContent = String(i + 1); // CSS hides number via font-size:0 when done
     if (!isToday)  { dot.style.opacity = '.38'; dot.style.cursor = 'default'; }
     dotsRow.appendChild(dot);
   }
@@ -741,10 +850,10 @@ function buildCard(ex) {
     ? Math.floor(timer.secs/60) + ':' + String(timer.secs%60).padStart(2,'0')
     : 'REST 90S';
   restBtn.appendChild(rIcon); restBtn.appendChild(rText);
-  card.appendChild(restBtn);
 
-  // edit form
+  // edit form first, then rest button always last at bottom
   card.appendChild(editing ? buildEditForm(ex) : (() => { const d = document.createElement('div'); d.className='edit-form'; return d; })());
+  card.appendChild(restBtn);
 
   return card;
 }
@@ -1015,6 +1124,219 @@ document.getElementById('app').addEventListener('touchend',e=>{
     navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});
   }
 })();
+
+// ═══════════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════
+
+let currentTab = 'train';
+
+document.getElementById('bottomNav').addEventListener('click', e => {
+  const tab = e.target.closest('[data-tab]');
+  if (!tab) return;
+  const t = tab.dataset.tab;
+  if (t === currentTab) return;
+  currentTab = t;
+
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+
+  if (t === 'history') {
+    document.getElementById('main').style.display        = 'none';
+    document.getElementById('fabWrap').style.display     = 'none';
+    document.getElementById('historyView').classList.add('show');
+    document.querySelector('.sticky-shell').style.display = 'none';
+    renderHistory();
+  } else {
+    document.getElementById('main').style.display        = '';
+    document.getElementById('fabWrap').style.display     = workouts[viewDay].type === 'rest' ? 'none' : 'flex';
+    document.getElementById('historyView').classList.remove('show');
+    document.querySelector('.sticky-shell').style.display = '';
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  HISTORY
+// ═══════════════════════════════════════════════════════════════
+
+function saveHistorySnapshot() {
+  // Called whenever a set is logged — persists a snapshot of today's session
+  const day     = workouts[TODAY_IDX];
+  const todayC  = completions[TODAY_STR] || {};
+  const history = lsGet('wt-history') || {};
+
+  if (day.type === 'rest') {
+    const doneRec = (day.recovery || []).filter(r => todayC[r.id]).length;
+    history[TODAY_STR] = {
+      date: TODAY_STR, dayIdx: TODAY_IDX, type: 'rest',
+      label: day.label, dayName: day.dayName,
+      totalRec: (day.recovery || []).length, doneRec,
+    };
+  } else {
+    const exercises = day.exercises.map(ex => ({
+      id: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps,
+      weight: ex.weight, done: Math.min(todayC[ex.id] || 0, ex.sets),
+    }));
+    const totalSets = exercises.reduce((a, e) => a + e.sets, 0);
+    const doneSets  = exercises.reduce((a, e) => a + e.done,  0);
+    history[TODAY_STR] = {
+      date: TODAY_STR, dayIdx: TODAY_IDX, type: day.type,
+      label: day.label, dayName: day.dayName,
+      exercises, totalSets, doneSets,
+    };
+  }
+  lsSet('wt-history', history);
+}
+
+function renderHistory() {
+  const container = document.getElementById('historyView');
+  container.textContent = '';
+
+  const history = lsGet('wt-history') || {};
+  const dates   = Object.keys(history).sort((a, b) => b.localeCompare(a));
+
+  // header
+  const hdr = document.createElement('div'); hdr.className = 'hist-header';
+  const ttl = document.createElement('div'); ttl.className = 'hist-title'; ttl.textContent = 'HISTORY';
+  const sub = document.createElement('div'); sub.className = 'hist-sub';
+  sub.textContent = dates.length === 0 ? 'No sessions logged yet'
+    : dates.length + ' session' + (dates.length === 1 ? '' : 's') + ' logged';
+  hdr.appendChild(ttl); hdr.appendChild(sub);
+  container.appendChild(hdr);
+
+  if (dates.length === 0) {
+    const empty = document.createElement('div'); empty.className = 'hist-empty';
+    const ico   = document.createElement('div'); ico.className = 'hist-empty-icon'; ico.textContent = '📭';
+    const msg   = document.createElement('div'); msg.textContent = 'Complete your first workout\nto start tracking history.';
+    empty.appendChild(ico); empty.appendChild(msg);
+    container.appendChild(empty);
+    return;
+  }
+
+  // stats chips
+  const workoutDates = dates.filter(d => history[d].type !== 'rest');
+  const streak       = calcStreak(dates);
+  const stats = document.createElement('div'); stats.className = 'hist-stats';
+  [
+    [String(dates.length),    'Sessions'],
+    [String(workoutDates.length), 'Workouts'],
+    [String(streak),          'Streak'],
+  ].forEach(([num, lbl]) => {
+    const chip = document.createElement('div'); chip.className = 'stat-chip';
+    const n    = document.createElement('div'); n.className = 'stat-num'; n.textContent = num;
+    const l    = document.createElement('div'); l.className = 'stat-lbl'; l.textContent = lbl;
+    chip.appendChild(n); chip.appendChild(l); stats.appendChild(chip);
+  });
+  container.appendChild(stats);
+
+  // group by month
+  const byMonth = {};
+  dates.forEach(d => {
+    const key = d.slice(0, 7); // YYYY-MM
+    if (!byMonth[key]) byMonth[key] = [];
+    byMonth[key].push(d);
+  });
+
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  Object.keys(byMonth).sort((a,b) => b.localeCompare(a)).forEach(monthKey => {
+    const [yr, mo] = monthKey.split('-').map(Number);
+    const group = document.createElement('div'); group.className = 'hist-day-group';
+    const mlbl  = document.createElement('div'); mlbl.className = 'hist-month-label';
+    mlbl.textContent = MONTH_NAMES[mo - 1] + ' ' + yr;
+    group.appendChild(mlbl);
+
+    byMonth[monthKey].forEach(dateStr => {
+      group.appendChild(buildHistCard(dateStr, history[dateStr]));
+    });
+    container.appendChild(group);
+  });
+}
+
+function buildHistCard(dateStr, entry) {
+  const color = TYPE_COLOR[entry.type] || '#C9A84C';
+  const d     = new Date(dateStr + 'T12:00:00');
+  const day   = d.getDate();
+  const mo    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+  const wd    = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
+
+  const isToday = dateStr === TODAY_STR;
+  const card    = document.createElement('div'); card.className = 'hist-card';
+  card.dataset.histDate = dateStr;
+
+  // top row
+  const top  = document.createElement('div'); top.className = 'hist-card-top';
+  const dcol = document.createElement('div'); dcol.className = 'hist-date-col';
+  const dateEl = document.createElement('div'); dateEl.className = 'hist-date';
+  dateEl.textContent = (isToday ? 'Today, ' : '') + mo + ' ' + day;
+  const wdEl   = document.createElement('div'); wdEl.className = 'hist-weekday';
+  wdEl.textContent = wd.toUpperCase() + ' \xb7 ' + entry.dayName;
+  dcol.appendChild(dateEl); dcol.appendChild(wdEl);
+
+  const badge = document.createElement('span'); badge.className = 'hist-badge b-' + entry.type;
+  badge.style.background = 'color-mix(in srgb, ' + color + ' 12%, transparent)';
+  badge.style.color       = color;
+  badge.style.border      = '1px solid color-mix(in srgb, ' + color + ' 28%, transparent)';
+  badge.textContent = entry.label.toUpperCase();
+
+  const pcol = document.createElement('div'); pcol.className = 'hist-progress-col';
+  if (entry.type !== 'rest') {
+    const frac = document.createElement('div');
+    frac.className = 'hist-fraction' + (entry.doneSets >= entry.totalSets ? ' full' : '');
+    frac.textContent = entry.doneSets + '/' + entry.totalSets;
+    const barWrap = document.createElement('div'); barWrap.className = 'hist-bar-wrap';
+    const barFill = document.createElement('div'); barFill.className = 'hist-bar-fill';
+    barFill.style.width  = (entry.totalSets ? Math.round((entry.doneSets/entry.totalSets)*100) : 0) + '%';
+    barFill.style.background = color;
+    barWrap.appendChild(barFill);
+    pcol.appendChild(frac); pcol.appendChild(barWrap);
+  } else {
+    const frac = document.createElement('div'); frac.className = 'hist-fraction';
+    frac.textContent = entry.doneRec + '/' + entry.totalRec;
+    pcol.appendChild(frac);
+  }
+
+  top.appendChild(dcol); top.appendChild(badge); top.appendChild(pcol);
+  card.appendChild(top);
+
+  // exercises detail (shown on expand)
+  if (entry.type !== 'rest' && entry.exercises && entry.exercises.length > 0) {
+    const exList = document.createElement('div'); exList.className = 'hist-exercises';
+    entry.exercises.forEach(ex => {
+      const row  = document.createElement('div'); row.className = 'hist-ex-row';
+      const name = document.createElement('div'); name.className = 'hist-ex-name'; name.textContent = ex.name;
+      const meta = document.createElement('div'); meta.style.display = 'flex'; meta.style.alignItems = 'center';
+      const sets = document.createElement('div');
+      sets.className = 'hist-ex-sets' + (ex.done >= ex.sets ? ' full' : '');
+      sets.textContent = ex.done + '/' + ex.sets + ' sets';
+      meta.appendChild(sets);
+      if (ex.weight) {
+        const wt = document.createElement('div'); wt.className = 'hist-ex-wt'; wt.textContent = ex.weight;
+        meta.appendChild(wt);
+      }
+      row.appendChild(name); row.appendChild(meta);
+      exList.appendChild(row);
+    });
+    card.appendChild(exList);
+
+    // toggle expand on tap
+    card.addEventListener('click', () => card.classList.toggle('expanded'));
+  }
+
+  return card;
+}
+
+function calcStreak(sortedDates) {
+  if (!sortedDates.length) return 0;
+  let streak = 0;
+  const today = new Date(TODAY_STR + 'T12:00:00');
+  for (let i = 0; i < sortedDates.length; i++) {
+    const d    = new Date(sortedDates[i] + 'T12:00:00');
+    const diff = Math.round((today - d) / 86400000);
+    if (diff === i) streak++;
+    else break;
+  }
+  return streak;
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  BOOT
