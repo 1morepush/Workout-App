@@ -322,7 +322,7 @@ body::after {
 .tip-body strong { color: var(--text); font-weight: 600; }
 
 /* ── FAB ─────────────────────────────────────────── */
-.fab-wrap { position: fixed; bottom: calc(20px + var(--safe-b)); right: 17px; z-index: 200; display: flex; flex-direction: column; align-items: flex-end; gap: 9px; }
+.fab-wrap { position: fixed; bottom: calc(84px + var(--safe-b)); right: 17px; z-index: 200; display: flex; flex-direction: column; align-items: flex-end; gap: 9px; }
 .fab {
   width: 52px; height: 52px; border-radius: 50%; background: var(--day-color); border: none;
   color: #0D0C0A; font-size: 24px; display: flex; align-items: center; justify-content: center;
@@ -600,6 +600,62 @@ body::after {
 .calc-target-val.is-deload { color: var(--rust); }
 .calc-target-val.is-working { color: var(--day-color); }
 .calc-target-val.is-bw { color: var(--text-dim); }
+
+/* ── MUSCLE DIAGRAM CARD ─────────────────────────── */
+.muscle-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 13px; padding: 12px 14px;
+}
+.muscle-card-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.muscle-card-title {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--text-sub);
+}
+.muscle-card-tag {
+  font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: .15em;
+  text-transform: uppercase; color: var(--day-color);
+  background: color-mix(in srgb, var(--day-color) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--day-color) 22%, transparent);
+  padding: 2px 7px; border-radius: 3px;
+}
+.muscle-bodies { display: flex; gap: 16px; align-items: flex-start; justify-content: center; }
+.muscle-body-wrap { flex: 1; max-width: 120px; }
+.muscle-legend {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+  padding-top: 10px; border-top: 1px solid var(--border);
+}
+.muscle-legend-item {
+  display: flex; align-items: center; gap: 5px;
+  font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: .06em;
+  color: var(--text-sub);
+}
+.ml-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── STRENGTH CHARTS ─────────────────────────────── */
+.progress-section { margin-bottom: 18px; }
+.progress-sec-label {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--text-sub);
+  padding: 0 2px 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
+}
+.chart-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden; margin-bottom: 9px;
+}
+.chart-card-hdr { padding: 12px 14px 8px; }
+.chart-card-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.chart-card-stats { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-sub); }
+.chart-card-stats .acc { color: var(--gold); }
+.chart-svg-wrap { padding: 0 10px 12px; }
+.chart-empty {
+  padding: 14px;
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--text-dim); text-align: center;
+}
+.heatmap-bodies { display: flex; gap: 20px; justify-content: center; align-items: flex-start; }
 </style>
 </head>
 <body>
@@ -877,6 +933,82 @@ let groceryChecked= lsGet('wt-grocery')     || {};
 let mealSubView   = 'plan';
 
 // ═══════════════════════════════════════════════════════════════
+//  MUSCLE DIAGRAM DATA
+// ═══════════════════════════════════════════════════════════════
+
+// SVG coords for each muscle in front/back view (viewBox 0 0 80 162)
+const MUSCLE_DEFS = {
+  front: {
+    chest:     [{cx:34,cy:37,rx:8,ry:9},{cx:46,cy:37,rx:8,ry:9}],
+    frontDelt: [{cx:20,cy:28,rx:6,ry:5},{cx:60,cy:28,rx:6,ry:5}],
+    biceps:    [{cx:15,cy:46,rx:4,ry:8},{cx:65,cy:46,rx:4,ry:8}],
+    core:      [{cx:40,cy:57,rx:10,ry:12}],
+    quads:     [{cx:30,cy:103,rx:6,ry:12},{cx:50,cy:103,rx:6,ry:12}],
+    calves:    [{cx:30,cy:138,rx:5,ry:10},{cx:50,cy:138,rx:5,ry:10}],
+  },
+  back: {
+    traps:     [{cx:40,cy:30,rx:13,ry:7}],
+    rhomboids: [{cx:40,cy:44,rx:8,ry:9}],
+    lats:      [{cx:27,cy:52,rx:6,ry:14},{cx:53,cy:52,rx:6,ry:14}],
+    rearDelt:  [{cx:20,cy:28,rx:6,ry:5},{cx:60,cy:28,rx:6,ry:5}],
+    triceps:   [{cx:13,cy:46,rx:4,ry:8},{cx:67,cy:46,rx:4,ry:8}],
+    glutes:    [{cx:31,cy:82,rx:9,ry:9},{cx:49,cy:82,rx:9,ry:9}],
+    hamstrings:[{cx:30,cy:105,rx:5,ry:13},{cx:50,cy:105,rx:5,ry:13}],
+    calves:    [{cx:30,cy:138,rx:5,ry:10},{cx:50,cy:138,rx:5,ry:10}],
+  },
+};
+
+const MUSCLE_LABELS = {
+  chest:'Chest', frontDelt:'Front Delt', biceps:'Biceps', core:'Core',
+  quads:'Quads', calves:'Calves', traps:'Traps', rhomboids:'Rhomboids',
+  lats:'Lats', rearDelt:'Rear Delt', triceps:'Triceps', glutes:'Glutes',
+  hamstrings:'Hamstrings',
+};
+
+// Primary/secondary muscles per workout type (opacity = prominence)
+const DAY_MUSCLE_FOCUS = {
+  push: {
+    front: { chest:{op:0.85}, frontDelt:{op:0.85} },
+    back:  { triceps:{op:0.80}, rearDelt:{op:0.28} },
+  },
+  pull: {
+    front: { biceps:{op:0.88} },
+    back:  { lats:{op:0.90}, rhomboids:{op:0.88}, rearDelt:{op:0.75}, traps:{op:0.55} },
+  },
+  legs: {
+    front: { quads:{op:0.90}, core:{op:0.65}, calves:{op:0.45} },
+    back:  { glutes:{op:0.90}, hamstrings:{op:0.90}, calves:{op:0.45} },
+  },
+};
+
+// Exercise → muscle mapping (for history heatmap)
+const EXERCISE_MUSCLES = {
+  'Barbell Bench Press':        {primary:['chest'],      secondary:['frontDelt','triceps']},
+  'Arnold Press':               {primary:['frontDelt'],  secondary:['triceps']},
+  'Incline Dumbbell Press':     {primary:['chest'],      secondary:['frontDelt','triceps']},
+  'Cable Lateral Raise':        {primary:['frontDelt'],  secondary:[]},
+  'Overhead Tricep Extension':  {primary:['triceps'],    secondary:[]},
+  'Tricep Pushdown':            {primary:['triceps'],    secondary:[]},
+  'Face Pull':                  {primary:['rearDelt'],   secondary:['traps']},
+  'Pull-ups / Lat Pulldown':    {primary:['lats'],       secondary:['biceps','rhomboids']},
+  'Lat Pulldown':               {primary:['lats'],       secondary:['biceps','rhomboids']},
+  'Chest-Supported Row':        {primary:['rhomboids'],  secondary:['lats','biceps','rearDelt']},
+  'Single-Arm Dumbbell Row':    {primary:['lats'],       secondary:['biceps','rhomboids']},
+  'Cable Row (Neutral Grip)':   {primary:['rhomboids'],  secondary:['lats','biceps']},
+  'Incline Dumbbell Curl':      {primary:['biceps'],     secondary:[]},
+  'Hammer Curl':                {primary:['biceps'],     secondary:[]},
+  'Rear Delt Fly':              {primary:['rearDelt'],   secondary:['traps']},
+  'Goblet Squat':               {primary:['quads'],      secondary:['glutes','core']},
+  'Romanian Deadlift':          {primary:['hamstrings'], secondary:['glutes']},
+  'Hip Thrust':                 {primary:['glutes'],     secondary:['hamstrings']},
+  'Bulgarian Split Squat':      {primary:['quads','glutes'], secondary:['hamstrings']},
+  'Leg Curl (Lying)':           {primary:['hamstrings'], secondary:[]},
+  'Standing Calf Raise':        {primary:['calves'],     secondary:[]},
+  'Dead Bug + Ab Wheel':        {primary:['core'],       secondary:[]},
+  'Dead Bug / Ab Wheel':        {primary:['core'],       secondary:[]},
+};
+
+// ═══════════════════════════════════════════════════════════════
 //  STATE + STORAGE
 // ═══════════════════════════════════════════════════════════════
 
@@ -1043,6 +1175,8 @@ function renderWorkoutDay(container, day) {
   const doneAll  = exs.length > 0 && exs.every(e => getDone(e.id) >= e.sets);
 
   container.appendChild(buildOverloadCard());
+  const muscleCard = buildMuscleCard(day.type);
+  if (muscleCard) container.appendChild(muscleCard);
   if (doneAll) container.appendChild(buildCompleteBanner(exs.length + ' exercises \xb7 ' + totalS + ' total sets'));
   exs.forEach(ex => container.appendChild(buildCard(ex)));
 }
@@ -1395,6 +1529,231 @@ document.getElementById('app').addEventListener('touchend',e=>{
 })();
 
 // ═══════════════════════════════════════════════════════════════
+//  SVG BODY BUILDER
+// ═══════════════════════════════════════════════════════════════
+
+function buildBodySVG(muscleHighlights, view) {
+  const SN = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(SN, 'svg');
+  svg.setAttribute('viewBox', '0 0 80 162');
+  svg.style.cssText = 'width:100%;height:auto;display:block;';
+
+  function el(tag, attrs, txt) {
+    const e = document.createElementNS(SN, tag);
+    Object.entries(attrs).forEach(([k,v]) => e.setAttribute(k, String(v)));
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+
+  const bg = '#141210', st = '#282420', sw = '0.7';
+  const base = {fill:bg, stroke:st, 'stroke-width':sw};
+
+  // ── body silhouette ──────────────────────────────────────────
+  [
+    el('ellipse', {...base, cx:40, cy:9,   rx:9,  ry:9}),                     // head
+    el('rect',    {...base, x:36, y:17,    width:8,  height:7,  rx:2}),       // neck
+    el('ellipse', {...base, cx:22, cy:28,  rx:9,  ry:6}),                     // L shoulder
+    el('ellipse', {...base, cx:58, cy:28,  rx:9,  ry:6}),                     // R shoulder
+    el('rect',    {...base, x:25, y:23,    width:30, height:53, rx:5}),       // torso
+    el('rect',    {...base, x:9,  y:24,    width:13, height:42, rx:6}),       // L upper arm
+    el('rect',    {...base, x:58, y:24,    width:13, height:42, rx:6}),       // R upper arm
+    el('rect',    {...base, x:10, y:63,    width:11, height:30, rx:5}),       // L forearm
+    el('rect',    {...base, x:59, y:63,    width:11, height:30, rx:5}),       // R forearm
+    el('path',    {...base, d:'M23 76 L21 93 L37 94 L40 92 L43 94 L59 93 L57 76Z'}), // hip
+    el('rect',    {...base, x:22, y:91,    width:15, height:40, rx:6}),       // L thigh
+    el('rect',    {...base, x:43, y:91,    width:15, height:40, rx:6}),       // R thigh
+    el('rect',    {...base, x:23, y:128,   width:13, height:30, rx:5}),       // L shin
+    el('rect',    {...base, x:44, y:128,   width:13, height:30, rx:5}),       // R shin
+  ].forEach(e => svg.appendChild(e));
+
+  // view label
+  svg.appendChild(el('text', {x:40,y:160,'text-anchor':'middle',fill:'#2C2922',
+    'font-size':5.5,'font-family':'"DM Mono",monospace'}, view.toUpperCase()));
+
+  // ── muscle highlights ─────────────────────────────────────────
+  const defs = MUSCLE_DEFS[view] || {};
+  Object.entries(muscleHighlights).forEach(([muscle, style]) => {
+    const shapes = defs[muscle];
+    if (!shapes) return;
+    shapes.forEach(s => svg.appendChild(
+      el('ellipse', {cx:s.cx, cy:s.cy, rx:s.rx, ry:s.ry,
+        fill:style.color, opacity:String(style.opacity)})
+    ));
+  });
+
+  return svg;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MUSCLE CARD (per workout day)
+// ═══════════════════════════════════════════════════════════════
+
+function buildMuscleCard(dayType) {
+  const focus = DAY_MUSCLE_FOCUS[dayType];
+  if (!focus) return null;
+  const color = TYPE_COLOR[dayType] || '#C9A84C';
+
+  const card = document.createElement('div'); card.className = 'muscle-card';
+
+  const hdr = document.createElement('div'); hdr.className = 'muscle-card-hdr';
+  const ttl = document.createElement('div'); ttl.className = 'muscle-card-title'; ttl.textContent = 'MUSCLES WORKED';
+  const tag = document.createElement('div'); tag.className = 'muscle-card-tag';
+  tag.textContent = dayType.toUpperCase() + ' DAY';
+  hdr.appendChild(ttl); hdr.appendChild(tag);
+  card.appendChild(hdr);
+
+  function makeHighlights(viewFocus) {
+    const h = {};
+    Object.entries(viewFocus || {}).forEach(([m, {op}]) => { h[m] = {color, opacity:op}; });
+    return h;
+  }
+
+  const row = document.createElement('div'); row.className = 'muscle-bodies';
+  ['front','back'].forEach(v => {
+    const wrap = document.createElement('div'); wrap.className = 'muscle-body-wrap';
+    wrap.appendChild(buildBodySVG(makeHighlights(focus[v]), v));
+    row.appendChild(wrap);
+  });
+  card.appendChild(row);
+
+  // legend
+  const leg = document.createElement('div'); leg.className = 'muscle-legend';
+  const allMuscles = new Map();
+  [...Object.entries(focus.front||{}), ...Object.entries(focus.back||{})].forEach(([m, {op}]) => {
+    if (!allMuscles.has(m)) allMuscles.set(m, op);
+  });
+  [...allMuscles.entries()].sort((a,b) => b[1]-a[1]).forEach(([m, op]) => {
+    const item = document.createElement('div'); item.className = 'muscle-legend-item';
+    const dot  = document.createElement('div'); dot.className  = 'ml-dot';
+    dot.style.background = color; dot.style.opacity = String(op);
+    const lbl = document.createElement('span'); lbl.textContent = MUSCLE_LABELS[m] || m;
+    item.appendChild(dot); item.appendChild(lbl); leg.appendChild(item);
+  });
+  card.appendChild(leg);
+  return card;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MUSCLE VOLUME HEATMAP (history)
+// ═══════════════════════════════════════════════════════════════
+
+function calcMuscleVolume(history) {
+  const vols = {};
+  Object.values(history).forEach(session => {
+    if (!session.exercises) return;
+    session.exercises.forEach(ex => {
+      const map = EXERCISE_MUSCLES[ex.name];
+      if (!map || !ex.done) return;
+      map.primary.forEach(m => { vols[m] = (vols[m]||0) + ex.done; });
+      map.secondary.forEach(m => { vols[m] = (vols[m]||0) + ex.done * 0.5; });
+    });
+  });
+  return vols;
+}
+
+const MUSCLE_BASE_COLORS = {
+  chest:'#C9A84C', frontDelt:'#C9A84C', biceps:'#BFBDB3', core:'#C8552A',
+  quads:'#C8552A', calves:'#9A9890', traps:'#BFBDB3', rhomboids:'#BFBDB3',
+  lats:'#BFBDB3', rearDelt:'#BFBDB3', triceps:'#C9A84C', glutes:'#C8552A',
+  hamstrings:'#C8552A',
+};
+
+function volumeToHighlights(volumes, view) {
+  const h   = {};
+  const max = Math.max(...Object.values(volumes), 1);
+  const def = MUSCLE_DEFS[view] || {};
+  Object.keys(def).forEach(m => {
+    if ((volumes[m] || 0) > 0) {
+      h[m] = {
+        color:   MUSCLE_BASE_COLORS[m] || '#C9A84C',
+        opacity: Math.max(0.15, Math.min(0.85, volumes[m] / max * 0.85 + 0.1)),
+      };
+    }
+  });
+  return h;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  STRENGTH CHART (SVG line chart)
+// ═══════════════════════════════════════════════════════════════
+
+function getStrengthHistory(history, exerciseName) {
+  const data = [];
+  Object.values(history)
+    .filter(s => s.exercises && s.exercises.length)
+    .sort((a,b) => a.date.localeCompare(b.date))
+    .forEach(s => {
+      const ex = s.exercises.find(e => e.name === exerciseName);
+      if (ex && ex.done > 0 && ex.weight) {
+        const w = parseFloat(ex.weight);
+        if (!isNaN(w) && w > 0) data.push({date: s.date, weight: w});
+      }
+    });
+  return data;
+}
+
+function buildStrengthChart(points, color) {
+  const SN = 'http://www.w3.org/2000/svg';
+  const W = 300, H = 76, PL = 34, PR = 10, PT = 6, PB = 18;
+  const iW = W-PL-PR, iH = H-PT-PB;
+  const n  = points.length;
+
+  const svg = document.createElementNS(SN, 'svg');
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.style.cssText = 'width:100%;height:auto;display:block;';
+
+  function el(tag, attrs, txt) {
+    const e = document.createElementNS(SN, tag);
+    Object.entries(attrs).forEach(([k,v]) => e.setAttribute(k, String(v)));
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+
+  const weights = points.map(p => p.weight);
+  const rawMin  = Math.min(...weights), rawMax = Math.max(...weights);
+  const pad     = Math.max((rawMax - rawMin) * 0.2, 5);
+  const minW = rawMin - pad, maxW = rawMax + pad;
+
+  function xp(i) { return PL + (n > 1 ? (i/(n-1))*iW : iW/2); }
+  function yp(w) { return PT + iH - ((w - minW)/(maxW - minW))*iH; }
+
+  // grid + y labels (3 ticks)
+  [0, 0.5, 1].forEach(t => {
+    const y = PT + iH - t*iH;
+    svg.appendChild(el('line', {x1:PL, y1:y, x2:W-PR, y2:y, stroke:'#1E1C18', 'stroke-width':0.6}));
+    const lv = Math.round(minW + t*(maxW-minW));
+    svg.appendChild(el('text', {x:PL-3, y:y+2.5, 'text-anchor':'end', fill:'#3A3730',
+      'font-size':6, 'font-family':'"DM Mono",monospace'}, String(lv)));
+  });
+
+  // area
+  const pathD = points.map((p,i) => (i?'L':'M') + xp(i).toFixed(1) + ',' + yp(p.weight).toFixed(1)).join('');
+  const areaD = pathD + ' L' + xp(n-1).toFixed(1)+',' + (PT+iH) + ' L' + PL+',' + (PT+iH) + 'Z';
+  svg.appendChild(el('path', {d:areaD, fill:color, 'fill-opacity':'0.1', stroke:'none'}));
+  svg.appendChild(el('path', {d:pathD, fill:'none', stroke:color, 'stroke-width':1.5,
+    'stroke-linecap':'round', 'stroke-linejoin':'round'}));
+
+  // dots + x labels (first, middle, last)
+  points.forEach((p,i) => {
+    svg.appendChild(el('circle', {cx:xp(i), cy:yp(p.weight), r:2.5, fill:color}));
+  });
+  [0, Math.floor(n/2), n-1].filter((v,i,a) => a.indexOf(v)===i).forEach(i => {
+    const d   = new Date(points[i].date + 'T12:00:00');
+    const lbl = (d.getMonth()+1) + '/' + d.getDate();
+    svg.appendChild(el('text', {x:xp(i), y:H-4, 'text-anchor':'middle', fill:'#3A3730',
+      'font-size':5.5, 'font-family':'"DM Mono",monospace'}, lbl));
+  });
+
+  // latest weight label
+  const last = points[n-1];
+  svg.appendChild(el('text', {x:xp(n-1), y:yp(last.weight)-5, 'text-anchor':'middle',
+    fill:color, 'font-size':7.5, 'font-family':'"DM Mono",monospace', 'font-weight':'bold'},
+    last.weight + ' lbs'));
+
+  return svg;
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  OVERLOAD CARD
 // ═══════════════════════════════════════════════════════════════
 
@@ -1738,6 +2097,80 @@ function renderHistory() {
     chip.appendChild(n); chip.appendChild(l); stats.appendChild(chip);
   });
   container.appendChild(stats);
+
+  // ── muscle volume heatmap ─────────────────────────────────────
+  const volumes = calcMuscleVolume(history);
+  const hasVolume = Object.keys(volumes).length > 0;
+
+  const hmSection = document.createElement('div'); hmSection.className = 'progress-section';
+  const hmLabel   = document.createElement('div'); hmLabel.className = 'progress-sec-label';
+  hmLabel.textContent = 'MUSCLE VOLUME';
+  hmSection.appendChild(hmLabel);
+
+  if (!hasVolume) {
+    const empty = document.createElement('div'); empty.className = 'chart-empty';
+    empty.textContent = 'Log workouts to see your muscle volume heatmap';
+    hmSection.appendChild(empty);
+  } else {
+    const bodies = document.createElement('div'); bodies.className = 'heatmap-bodies';
+    ['front','back'].forEach(v => {
+      const wrap = document.createElement('div'); wrap.style.cssText = 'flex:1;max-width:130px;';
+      wrap.appendChild(buildBodySVG(volumeToHighlights(volumes, v), v));
+      bodies.appendChild(wrap);
+    });
+    hmSection.appendChild(bodies);
+  }
+  container.appendChild(hmSection);
+
+  // ── strength progression charts ───────────────────────────────
+  const KEY_EXERCISES = [
+    {name:'Barbell Bench Press',  color:'#C9A84C'},
+    {name:'Romanian Deadlift',    color:'#C8552A'},
+    {name:'Hip Thrust',           color:'#C8552A'},
+    {name:'Pull-ups / Lat Pulldown', color:'#BFBDB3'},
+  ];
+
+  const chartsWithData = KEY_EXERCISES
+    .map(ex => ({...ex, data: getStrengthHistory(history, ex.name)}))
+    .filter(ex => ex.data.length >= 2);
+
+  const spSection = document.createElement('div'); spSection.className = 'progress-section';
+  const spLabel   = document.createElement('div'); spLabel.className   = 'progress-sec-label';
+  spLabel.textContent = 'STRENGTH PROGRESS';
+  spSection.appendChild(spLabel);
+
+  if (chartsWithData.length === 0) {
+    const empty = document.createElement('div'); empty.className = 'chart-empty';
+    empty.textContent = 'Log weights for key lifts to track strength over time';
+    spSection.appendChild(empty);
+  } else {
+    chartsWithData.forEach(ex => {
+      const first = ex.data[0].weight, last = ex.data[ex.data.length-1].weight;
+      const delta = last - first, pct = ((delta/first)*100).toFixed(1);
+
+      const cc   = document.createElement('div'); cc.className = 'chart-card';
+      const cHdr = document.createElement('div'); cHdr.className = 'chart-card-hdr';
+      const cNm  = document.createElement('div'); cNm.className  = 'chart-card-name'; cNm.textContent = ex.name;
+      const cSt  = document.createElement('div'); cSt.className  = 'chart-card-stats';
+      const acc  = document.createElement('span'); acc.className = 'acc';
+      acc.textContent = last + ' lbs (' + (delta >= 0 ? '+' : '') + pct + '%)';
+      cSt.appendChild(acc);
+      cSt.insertBefore(document.createTextNode('Latest: '), acc);
+      cHdr.appendChild(cNm); cHdr.appendChild(cSt);
+      cc.appendChild(cHdr);
+
+      const cSvg = document.createElement('div'); cSvg.className = 'chart-svg-wrap';
+      cSvg.appendChild(buildStrengthChart(ex.data, ex.color));
+      cc.appendChild(cSvg);
+      spSection.appendChild(cc);
+    });
+  }
+  container.appendChild(spSection);
+
+  // ── month groups ──────────────────────────────────────────────
+  const hrDiv = document.createElement('div'); hrDiv.className = 'progress-sec-label';
+  hrDiv.textContent = 'WORKOUT LOG';
+  container.appendChild(hrDiv);
 
   // group by month
   const byMonth = {};
