@@ -2622,28 +2622,27 @@ function renderCoachChat(container, key) {
     msgsEl.appendChild(typingEl);
     msgsEl.scrollTop = msgsEl.scrollHeight;
 
-    // build Gemini conversation history
-    const geminiContents = [];
-    const history = coachGetMsgs().slice(0, -1); // exclude the one we just added
-    history.forEach(m => {
-      geminiContents.push({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.text }] });
+    // build messages array for Groq (OpenAI-compatible format)
+    const groqMessages = [{ role: 'system', content: buildCoachSystemPrompt() }];
+    coachGetMsgs().forEach(m => {
+      groqMessages.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text });
     });
-    geminiContents.push({ role: 'user', parts: [{ text }] });
 
-    fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+    fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: buildCoachSystemPrompt() }] },
-        contents: geminiContents,
-        generationConfig: { maxOutputTokens: 512, temperature: 0.7 },
+        model: 'llama-3.1-8b-instant',
+        messages: groqMessages,
+        max_tokens: 512,
+        temperature: 0.7,
       }),
     })
     .then(r => r.json())
     .then(data => {
       typingEl.remove();
       sendBtn.disabled = false;
-      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const reply = data?.choices?.[0]?.message?.content;
       if (reply) {
         const saved = coachGetMsgs();
         saved.push({ role: 'ai', text: reply });
