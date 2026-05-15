@@ -217,6 +217,13 @@ body::after {
 }
 .wt-chip.has-wt { color: var(--day-color); border-color: color-mix(in srgb, var(--day-color) 40%, transparent); }
 .wt-chip:active  { border-color: var(--day-color); }
+/* weight column — wraps chip + prev-weight reference */
+.wt-col { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; align-self: center; flex-shrink: 0; }
+.wt-col .wt-chip { margin-left: 0; }
+.prev-wt {
+  font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: .1em;
+  color: var(--text-dim); white-space: nowrap;
+}
 .wt-input {
   margin-left: auto; width: 74px; font-family: 'DM Mono', monospace;
   font-size: 11px; background: var(--bg); border: 1px solid var(--day-color);
@@ -1235,7 +1242,15 @@ function buildCard(ex) {
     if (!isToday)  { dot.style.opacity = '.38'; dot.style.cursor = 'default'; }
     dotsRow.appendChild(dot);
   }
-  dotsRow.appendChild(buildWeightChip(ex));
+  const wtCol = document.createElement('div'); wtCol.className = 'wt-col';
+  wtCol.appendChild(buildWeightChip(ex));
+  const pw = getPrevWeight(ex.name);
+  if (pw) {
+    const pwEl = document.createElement('div'); pwEl.className = 'prev-wt';
+    pwEl.textContent = 'prev: ' + pw;
+    wtCol.appendChild(pwEl);
+  }
+  dotsRow.appendChild(wtCol);
   card.appendChild(dotsRow);
 
   // REST button
@@ -1982,6 +1997,22 @@ document.getElementById('mealView').addEventListener('click', e => {
   const chk = item.querySelector('.grocery-chk');
   if (chk) chk.textContent = groceryChecked[id] ? '✓' : '';
 });
+
+// ═══════════════════════════════════════════════════════════════
+//  WEIGHT HISTORY LOOKUP
+// ═══════════════════════════════════════════════════════════════
+
+function getPrevWeight(exerciseName) {
+  const history = lsGet('wt-history') || {};
+  const sessions = Object.values(history)
+    .filter(s => s.date !== TODAY_STR && s.exercises && s.exercises.length > 0)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  for (const session of sessions) {
+    const ex = session.exercises.find(e => e.name === exerciseName);
+    if (ex && ex.weight && ex.done > 0) return ex.weight;
+  }
+  return null;
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  TAB SWITCHING
