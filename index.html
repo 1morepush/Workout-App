@@ -511,6 +511,136 @@ body::after {
 }
 .overload-calc-btn:active { border-color: var(--day-color); color: var(--day-color); }
 
+/* ── COACH VIEW ──────────────────────────────────── */
+#coachView {
+  flex: 1; display: none; flex-direction: column; overflow: hidden;
+  position: fixed; top: 0; bottom: calc(56px + var(--safe-b)); left: 0; right: 0;
+  background: var(--bg);
+}
+#coachView.show { display: flex; }
+
+.coach-setup {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 32px 24px; gap: 20px;
+}
+.coach-setup-title {
+  font-family: 'Bebas Neue', cursive; font-size: 48px;
+  color: var(--text); letter-spacing: .06em; text-align: center; line-height: 1;
+}
+.coach-setup-sub {
+  font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .15em;
+  color: var(--text-sub); text-align: center; line-height: 1.7; text-transform: uppercase;
+}
+.coach-key-inp {
+  width: 100%; background: var(--bg-inner); border: 1px solid var(--border-md);
+  border-radius: 10px; padding: 13px 14px; font-family: 'DM Mono', monospace;
+  font-size: 12px; color: var(--text); outline: none; letter-spacing: .06em;
+}
+.coach-key-inp:focus { border-color: var(--day-color); }
+.coach-key-inp::placeholder { color: var(--text-dim); }
+.coach-save-btn {
+  width: 100%; background: var(--day-color); color: #111; border: none;
+  border-radius: 10px; padding: 14px; font-family: 'Bebas Neue', cursive;
+  font-size: 20px; letter-spacing: .1em; cursor: pointer;
+}
+.coach-save-btn:active { opacity: .8; }
+
+.coach-header {
+  padding: 16px 16px 10px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-end; justify-content: space-between;
+}
+.coach-title {
+  font-family: 'Bebas Neue', cursive; font-size: 36px;
+  color: var(--text); letter-spacing: .06em; line-height: 1;
+}
+.coach-clear-btn {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .14em;
+  color: var(--text-dim); background: none; border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 10px; cursor: pointer; text-transform: uppercase;
+}
+.coach-clear-btn:active { border-color: var(--day-color); color: var(--day-color); }
+
+.coach-msgs {
+  flex: 1; overflow-y: auto; padding: 16px 14px; display: flex;
+  flex-direction: column; gap: 12px;
+}
+.coach-msg {
+  max-width: 88%; display: flex; flex-direction: column; gap: 4px;
+}
+.coach-msg.user { align-self: flex-end; align-items: flex-end; }
+.coach-msg.ai   { align-self: flex-start; align-items: flex-start; }
+.coach-bubble {
+  padding: 11px 14px; border-radius: 14px; line-height: 1.55;
+  font-family: 'Outfit', sans-serif; font-size: 14px;
+}
+.coach-msg.user .coach-bubble {
+  background: var(--day-color); color: #111; border-bottom-right-radius: 4px;
+}
+.coach-msg.ai .coach-bubble {
+  background: var(--bg-card); border: 1px solid var(--border-md);
+  color: var(--text); border-bottom-left-radius: 4px;
+}
+.coach-bubble-label {
+  font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: .14em;
+  color: var(--text-dim); text-transform: uppercase;
+}
+.coach-typing {
+  display: flex; gap: 5px; align-items: center; padding: 12px 14px;
+  background: var(--bg-card); border: 1px solid var(--border-md);
+  border-radius: 14px; border-bottom-left-radius: 4px; width: fit-content;
+}
+.coach-typing span {
+  width: 6px; height: 6px; background: var(--text-dim); border-radius: 50%;
+  animation: coach-bounce .9s infinite;
+}
+.coach-typing span:nth-child(2) { animation-delay: .18s; }
+.coach-typing span:nth-child(3) { animation-delay: .36s; }
+@keyframes coach-bounce {
+  0%,60%,100% { transform: translateY(0); }
+  30%          { transform: translateY(-5px); }
+}
+
+.coach-input-bar {
+  flex-shrink: 0; display: flex; gap: 8px; padding: 10px 12px 14px;
+  border-top: 1px solid var(--border); background: var(--bg);
+}
+.coach-inp {
+  flex: 1; background: var(--bg-inner); border: 1px solid var(--border-md);
+  border-radius: 22px; padding: 11px 16px; font-family: 'Outfit', sans-serif;
+  font-size: 14px; color: var(--text); outline: none; resize: none;
+  max-height: 100px; line-height: 1.4;
+}
+.coach-inp:focus { border-color: var(--day-color); }
+.coach-inp::placeholder { color: var(--text-dim); }
+.coach-send-btn {
+  width: 42px; height: 42px; border-radius: 50%; border: none;
+  background: var(--day-color); color: #111; font-size: 18px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; align-self: flex-end;
+}
+.coach-send-btn:disabled { opacity: .4; cursor: default; }
+.coach-send-btn:active:not(:disabled) { opacity: .75; }
+
+.coach-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 10px; padding: 32px;
+}
+.coach-empty-icon { font-size: 44px; }
+.coach-empty-text {
+  font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .15em;
+  color: var(--text-dim); text-align: center; text-transform: uppercase; line-height: 1.8;
+}
+.coach-suggestions {
+  display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px;
+}
+.coach-sug-btn {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .1em;
+  color: var(--text-sub); background: var(--bg-card); border: 1px solid var(--border-md);
+  border-radius: 20px; padding: 7px 12px; cursor: pointer; text-transform: uppercase;
+}
+.coach-sug-btn:active { border-color: var(--day-color); color: var(--day-color); }
+
 /* ── MEAL VIEW ───────────────────────────────────── */
 #mealView { flex: 1; padding: 16px 14px 20px; display: none; flex-direction: column; gap: 0; overflow-y: auto; }
 #mealView.show { display: flex; }
@@ -697,6 +827,8 @@ body::after {
 
   <div id="mealView"></div>
 
+  <div id="coachView"></div>
+
   <nav class="bottom-nav" id="bottomNav">
     <button class="nav-tab active" data-tab="train">
       <span class="tab-icon">🏋️</span>
@@ -709,6 +841,10 @@ body::after {
     <button class="nav-tab" data-tab="history">
       <span class="tab-icon">📊</span>
       <span class="tab-label">History</span>
+    </button>
+    <button class="nav-tab" data-tab="coach">
+      <span class="tab-icon">🤖</span>
+      <span class="tab-label">Coach</span>
     </button>
   </nav>
 </div>
@@ -2029,17 +2165,19 @@ document.getElementById('bottomNav').addEventListener('click', e => {
 
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
 
-  const main        = document.getElementById('main');
-  const fab         = document.getElementById('fabWrap');
-  const histView    = document.getElementById('historyView');
-  const mealViewEl  = document.getElementById('mealView');
-  const stickyShell = document.querySelector('.sticky-shell');
+  const main         = document.getElementById('main');
+  const fab          = document.getElementById('fabWrap');
+  const histView     = document.getElementById('historyView');
+  const mealViewEl   = document.getElementById('mealView');
+  const coachViewEl  = document.getElementById('coachView');
+  const stickyShell  = document.querySelector('.sticky-shell');
 
   // hide everything first
-  main.style.display       = 'none';
-  fab.style.display        = 'none';
+  main.style.display        = 'none';
+  fab.style.display         = 'none';
   histView.classList.remove('show');
   mealViewEl.classList.remove('show');
+  coachViewEl.classList.remove('show');
   stickyShell.style.display = 'none';
 
   if (t === 'history') {
@@ -2048,6 +2186,9 @@ document.getElementById('bottomNav').addEventListener('click', e => {
   } else if (t === 'meal') {
     mealViewEl.classList.add('show');
     renderMeal();
+  } else if (t === 'coach') {
+    coachViewEl.classList.add('show');
+    renderCoach();
   } else {
     main.style.display        = '';
     fab.style.display         = workouts[viewDay].type === 'rest' ? 'none' : 'flex';
@@ -2311,6 +2452,261 @@ function calcStreak(sortedDates) {
     else break;
   }
   return streak;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  COACH (AI Personal Trainer — Google Gemini)
+// ═══════════════════════════════════════════════════════════════
+
+const COACH_KEY_STORE  = 'wt-coach-key';
+const COACH_MSGS_STORE = 'wt-coach-msgs';
+
+function coachGetKey()  { return lsGet(COACH_KEY_STORE) || ''; }
+function coachSaveKey(k){ lsSet(COACH_KEY_STORE, k); }
+function coachGetMsgs() { return lsGet(COACH_MSGS_STORE) || []; }
+function coachSaveMsgs(m){ lsSet(COACH_MSGS_STORE, m); }
+
+function buildCoachSystemPrompt() {
+  const day = workouts[TODAY_IDX];
+  const todayC = completions[TODAY_STR] || {};
+  const history = lsGet('wt-history') || {};
+  const recentSessions = Object.values(history)
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .slice(0, 5);
+
+  let prompt = `You are a knowledgeable, encouraging personal trainer built into a workout tracking app. You know the user's full workout plan, their current weights, and their recent history. Be concise, specific, and practical. Use the data you have to give personalized advice.\n\n`;
+
+  prompt += `TODAY (${TODAY_STR}) — ${day.dayName} — ${day.type.toUpperCase()} DAY\n`;
+  if (day.type !== 'rest' && day.exercises) {
+    day.exercises.forEach(ex => {
+      const done = Math.min(todayC[ex.id] || 0, ex.sets);
+      prompt += `  • ${ex.name}: ${ex.sets}×${ex.reps} @ ${ex.weight || 'bodyweight'} — ${done}/${ex.sets} sets done\n`;
+    });
+  } else {
+    prompt += `  Rest/recovery day\n`;
+  }
+
+  if (recentSessions.length > 0) {
+    prompt += `\nRECENT SESSIONS (last ${recentSessions.length}):\n`;
+    recentSessions.forEach(s => {
+      prompt += `  ${s.date} — ${s.type?.toUpperCase()} — ${s.doneSets||0}/${s.totalSets||0} sets\n`;
+      if (s.exercises) {
+        s.exercises.forEach(ex => {
+          if (ex.done > 0) prompt += `    • ${ex.name}: ${ex.weight || 'bw'} (${ex.done}/${ex.sets} sets)\n`;
+        });
+      }
+    });
+  }
+
+  const week = (lsGet('wt-calc-week') || 1);
+  const phase = week <= 3 ? 'Foundation' : week <= 7 ? 'Progression' : 'Peak/Deload';
+  prompt += `\nTRAINING WEEK: ${week} — Phase: ${phase}\n`;
+  prompt += `\nFULL WEEKLY PLAN:\n`;
+  workouts.forEach((w, i) => {
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    prompt += `  ${days[i]} — ${w.label} (${w.type})\n`;
+    if (w.exercises) w.exercises.forEach(ex => {
+      prompt += `    • ${ex.name}: ${ex.sets}×${ex.reps} @ ${ex.weight || 'bw'}\n`;
+    });
+  });
+
+  return prompt;
+}
+
+function renderCoach() {
+  const container = document.getElementById('coachView');
+  container.innerHTML = '';
+
+  const key = coachGetKey();
+  if (!key) {
+    renderCoachSetup(container);
+    return;
+  }
+  renderCoachChat(container, key);
+}
+
+function renderCoachSetup(container) {
+  const wrap = document.createElement('div'); wrap.className = 'coach-setup';
+
+  const title = document.createElement('div'); title.className = 'coach-setup-title';
+  title.textContent = 'AI Coach';
+  wrap.appendChild(title);
+
+  const sub = document.createElement('div'); sub.className = 'coach-setup-sub';
+  sub.textContent = 'Enter your Google Gemini API key\nto activate your personal trainer.\nFree at aistudio.google.com';
+  wrap.appendChild(sub);
+
+  const inp = document.createElement('input');
+  inp.type = 'password'; inp.className = 'coach-key-inp';
+  inp.placeholder = 'AIza...';
+  wrap.appendChild(inp);
+
+  const btn = document.createElement('button'); btn.className = 'coach-save-btn';
+  btn.textContent = 'ACTIVATE COACH';
+  btn.addEventListener('click', () => {
+    const val = inp.value.trim();
+    if (!val) return;
+    coachSaveKey(val);
+    renderCoach();
+  });
+  wrap.appendChild(btn);
+
+  container.appendChild(wrap);
+  inp.focus();
+}
+
+function renderCoachChat(container, key) {
+  // header
+  const header = document.createElement('div'); header.className = 'coach-header';
+  const title = document.createElement('div'); title.className = 'coach-title';
+  title.textContent = 'AI COACH';
+  header.appendChild(title);
+
+  const clearBtn = document.createElement('button'); clearBtn.className = 'coach-clear-btn';
+  clearBtn.textContent = 'Clear Chat';
+  clearBtn.addEventListener('click', () => { coachSaveMsgs([]); renderCoach(); });
+  header.appendChild(clearBtn);
+  container.appendChild(header);
+
+  // messages area
+  const msgsEl = document.createElement('div'); msgsEl.className = 'coach-msgs';
+  container.appendChild(msgsEl);
+
+  const msgs = coachGetMsgs();
+  if (msgs.length === 0) {
+    renderCoachEmpty(msgsEl);
+  } else {
+    msgs.forEach(m => appendCoachBubble(msgsEl, m.role, m.text));
+    setTimeout(() => { msgsEl.scrollTop = msgsEl.scrollHeight; }, 0);
+  }
+
+  // input bar
+  const bar = document.createElement('div'); bar.className = 'coach-input-bar';
+  const inp = document.createElement('textarea'); inp.className = 'coach-inp';
+  inp.placeholder = 'Ask your coach anything...'; inp.rows = 1;
+  inp.addEventListener('input', () => {
+    inp.style.height = 'auto';
+    inp.style.height = Math.min(inp.scrollHeight, 100) + 'px';
+  });
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+  });
+
+  const sendBtn = document.createElement('button'); sendBtn.className = 'coach-send-btn';
+  sendBtn.innerHTML = '&#9650;';
+  sendBtn.addEventListener('click', sendMsg);
+
+  bar.appendChild(inp);
+  bar.appendChild(sendBtn);
+  container.appendChild(bar);
+
+  function sendMsg() {
+    const text = inp.value.trim();
+    if (!text || sendBtn.disabled) return;
+    inp.value = ''; inp.style.height = 'auto'; sendBtn.disabled = true;
+
+    // remove empty state
+    const emptyEl = msgsEl.querySelector('.coach-empty');
+    if (emptyEl) emptyEl.remove();
+
+    const allMsgs = coachGetMsgs();
+    allMsgs.push({ role: 'user', text });
+    coachSaveMsgs(allMsgs);
+    appendCoachBubble(msgsEl, 'user', text);
+
+    // typing indicator
+    const typingEl = document.createElement('div'); typingEl.className = 'coach-msg ai';
+    const typingBubble = document.createElement('div'); typingBubble.className = 'coach-typing';
+    for (let i = 0; i < 3; i++) { const s = document.createElement('span'); typingBubble.appendChild(s); }
+    typingEl.appendChild(typingBubble);
+    msgsEl.appendChild(typingEl);
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+
+    // build Gemini conversation history
+    const geminiContents = [];
+    const history = coachGetMsgs().slice(0, -1); // exclude the one we just added
+    history.forEach(m => {
+      geminiContents.push({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.text }] });
+    });
+    geminiContents.push({ role: 'user', parts: [{ text }] });
+
+    fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: buildCoachSystemPrompt() }] },
+        contents: geminiContents,
+        generationConfig: { maxOutputTokens: 512, temperature: 0.7 },
+      }),
+    })
+    .then(r => r.json())
+    .then(data => {
+      typingEl.remove();
+      sendBtn.disabled = false;
+      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (reply) {
+        const saved = coachGetMsgs();
+        saved.push({ role: 'ai', text: reply });
+        coachSaveMsgs(saved);
+        appendCoachBubble(msgsEl, 'ai', reply);
+      } else {
+        const errMsg = data?.error?.message || 'No response. Check your API key.';
+        appendCoachBubble(msgsEl, 'ai', '⚠️ ' + errMsg);
+      }
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    })
+    .catch(() => {
+      typingEl.remove();
+      sendBtn.disabled = false;
+      appendCoachBubble(msgsEl, 'ai', '⚠️ Network error. Check your connection.');
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+    });
+  }
+
+  inp.focus();
+}
+
+function renderCoachEmpty(msgsEl) {
+  const wrap = document.createElement('div'); wrap.className = 'coach-empty';
+  const icon = document.createElement('div'); icon.className = 'coach-empty-icon';
+  icon.textContent = '🤖';
+  const txt = document.createElement('div'); txt.className = 'coach-empty-text';
+  txt.textContent = "Your AI coach knows your plan,\nyour weights, and your history.\nAsk anything.";
+  wrap.appendChild(icon); wrap.appendChild(txt);
+
+  const sugs = document.createElement('div'); sugs.className = 'coach-suggestions';
+  const suggestions = [
+    "Should I deload this week?",
+    "What muscles am I neglecting?",
+    "Shoulder hurts on bench — alternatives?",
+    "Am I progressing fast enough?",
+  ];
+  suggestions.forEach(s => {
+    const btn = document.createElement('button'); btn.className = 'coach-sug-btn';
+    btn.textContent = s;
+    btn.addEventListener('click', () => {
+      const bar = document.querySelector('.coach-inp');
+      if (bar) { bar.value = s; bar.dispatchEvent(new Event('input')); bar.focus(); }
+    });
+    sugs.appendChild(btn);
+  });
+  wrap.appendChild(sugs);
+  msgsEl.appendChild(wrap);
+}
+
+function appendCoachBubble(msgsEl, role, text) {
+  const msg = document.createElement('div');
+  msg.className = 'coach-msg ' + (role === 'user' ? 'user' : 'ai');
+
+  const label = document.createElement('div'); label.className = 'coach-bubble-label';
+  label.textContent = role === 'user' ? 'You' : 'Coach';
+  msg.appendChild(label);
+
+  const bubble = document.createElement('div'); bubble.className = 'coach-bubble';
+  bubble.textContent = text;
+  msg.appendChild(bubble);
+
+  msgsEl.appendChild(msg);
 }
 
 // ═══════════════════════════════════════════════════════════════
