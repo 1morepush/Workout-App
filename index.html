@@ -2562,10 +2562,20 @@ function renderCoachChat(container, key) {
   title.textContent = 'AI COACH';
   header.appendChild(title);
 
+  const headerBtns = document.createElement('div');
+  headerBtns.style.cssText = 'display:flex;gap:6px';
+
+  const changeKeyBtn = document.createElement('button'); changeKeyBtn.className = 'coach-clear-btn';
+  changeKeyBtn.textContent = 'Change Key';
+  changeKeyBtn.addEventListener('click', () => { coachSaveKey(''); coachSaveMsgs([]); renderCoach(); });
+  headerBtns.appendChild(changeKeyBtn);
+
   const clearBtn = document.createElement('button'); clearBtn.className = 'coach-clear-btn';
   clearBtn.textContent = 'Clear Chat';
   clearBtn.addEventListener('click', () => { coachSaveMsgs([]); renderCoach(); });
-  header.appendChild(clearBtn);
+  headerBtns.appendChild(clearBtn);
+
+  header.appendChild(headerBtns);
   container.appendChild(header);
 
   // messages area
