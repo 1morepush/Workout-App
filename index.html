@@ -1235,6 +1235,14 @@ const EXERCISE_MUSCLES = {
 const TODAY_IDX = new Date().getDay();
 const TODAY_STR = new Date().toISOString().slice(0,10);
 const DAYS_S    = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+
+// Returns the ISO date string for the currently viewed day (today or past days in this week)
+function viewDayStr() {
+  const diff = (TODAY_IDX - viewDay + 7) % 7;
+  const d = new Date();
+  d.setDate(d.getDate() - diff);
+  return d.toISOString().slice(0, 10);
+}
 const MONTHS_S  = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
 function lsGet(k)   { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
@@ -1249,10 +1257,11 @@ let timer       = {active:false, secs:90, iv:null, forExId:null};
 
 function saveAll() { lsSet('wt-plans',workouts); lsSet('wt-done',completions); lsSet('wt-nextid',nextId); scheduleSyncToGist(); }
 
-function getDone(id)   { return (completions[TODAY_STR]||{})[id] || 0; }
+function getDone(id)   { return (completions[viewDayStr()]||{})[id] || 0; }
 function setDone(id,n) {
-  if (!completions[TODAY_STR]) completions[TODAY_STR]={};
-  completions[TODAY_STR][id]=n;
+  const ds = viewDayStr();
+  if (!completions[ds]) completions[ds]={};
+  completions[ds][id]=n;
   lsSet('wt-done',completions);
   saveHistorySnapshot();
 }
@@ -1415,7 +1424,6 @@ function buildCard(ex) {
   const done    = getDone(ex.id);
   const allDone = done >= ex.sets;
   const editing = editingId === ex.id;
-  const isToday = viewDay === TODAY_IDX;
 
   const card = document.createElement('div');
   card.className = 'ex-card' + (allDone ? ' done' : '');
@@ -1452,7 +1460,6 @@ function buildCard(ex) {
     dot.dataset.ex = ex.id;
     dot.dataset.i  = String(i);
     dot.textContent = String(i + 1); // CSS hides number via font-size:0 when done
-    if (!isToday)  { dot.style.opacity = '.38'; dot.style.cursor = 'default'; }
     dotsRow.appendChild(dot);
   }
   const wtCol = document.createElement('div'); wtCol.className = 'wt-col';
@@ -1587,12 +1594,12 @@ function renderRestDay(container, day) {
 document.getElementById('main').addEventListener('click', e => {
   // set dot
   const dot = e.target.closest('.dot');
-  if (dot && viewDay===TODAY_IDX) {
+  if (dot) {
     const exId=dot.dataset.ex, idx=parseInt(dot.dataset.i), ex=findEx(exId);
     if (!ex) return;
     const cur=getDone(exId), newN=idx<cur?idx:idx+1, wasAll=cur>=ex.sets;
     setDone(exId,newN);
-    if (newN>cur) startTimer(exId);
+    if (newN>cur && viewDay===TODAY_IDX) startTimer(exId);
     replaceCard(ex,wasAll,newN);
     updateSetsBar();
     return;
@@ -1721,7 +1728,7 @@ document.getElementById('addConfirm').addEventListener('click',()=>{
 document.getElementById('fabReset').addEventListener('click',()=>document.getElementById('resetDialog').classList.add('open'));
 document.getElementById('resetNo').addEventListener('click', ()=>document.getElementById('resetDialog').classList.remove('open'));
 document.getElementById('resetYes').addEventListener('click',()=>{
-  if (completions[TODAY_STR]){delete completions[TODAY_STR];lsSet('wt-done',completions);}
+  const ds=viewDayStr();if(completions[ds]){delete completions[ds];lsSet('wt-done',completions);}
   document.getElementById('resetDialog').classList.remove('open');
   stopTimer(); renderHeader(); renderMain();
 });
@@ -2500,27 +2507,27 @@ document.getElementById('bottomNav').addEventListener('click', e => {
 // ═══════════════════════════════════════════════════════════════
 
 function saveHistorySnapshot() {
-  // Called whenever a set is logged — persists a snapshot of today's session
-  const day     = workouts[TODAY_IDX];
-  const todayC  = completions[TODAY_STR] || {};
+  const ds      = viewDayStr();
+  const day     = workouts[viewDay];
+  const dayC    = completions[ds] || {};
   const history = lsGet('wt-history') || {};
 
   if (day.type === 'rest') {
-    const doneRec = (day.recovery || []).filter(r => todayC[r.id]).length;
-    history[TODAY_STR] = {
-      date: TODAY_STR, dayIdx: TODAY_IDX, type: 'rest',
+    const doneRec = (day.recovery || []).filter(r => dayC[r.id]).length;
+    history[ds] = {
+      date: ds, dayIdx: viewDay, type: 'rest',
       label: day.label, dayName: day.dayName,
       totalRec: (day.recovery || []).length, doneRec,
     };
   } else {
     const exercises = day.exercises.map(ex => ({
       id: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps,
-      weight: ex.weight, done: Math.min(todayC[ex.id] || 0, ex.sets),
+      weight: ex.weight, done: Math.min(dayC[ex.id] || 0, ex.sets),
     }));
     const totalSets = exercises.reduce((a, e) => a + e.sets, 0);
     const doneSets  = exercises.reduce((a, e) => a + e.done,  0);
-    history[TODAY_STR] = {
-      date: TODAY_STR, dayIdx: TODAY_IDX, type: day.type,
+    history[ds] = {
+      date: ds, dayIdx: viewDay, type: day.type,
       label: day.label, dayName: day.dayName,
       exercises, totalSets, doneSets,
     };
