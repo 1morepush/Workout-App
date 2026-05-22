@@ -1730,7 +1730,7 @@ document.getElementById('addConfirm').addEventListener('click',()=>{
 document.getElementById('fabReset').addEventListener('click',()=>document.getElementById('resetDialog').classList.add('open'));
 document.getElementById('resetNo').addEventListener('click', ()=>document.getElementById('resetDialog').classList.remove('open'));
 document.getElementById('resetYes').addEventListener('click',()=>{
-  if (completions[TODAY_STR]){delete completions[TODAY_STR];lsSet('wt-done',completions);}
+  const ds=viewDayStr();if(completions[ds]){delete completions[ds];lsSet('wt-done',completions);}
   document.getElementById('resetDialog').classList.remove('open');
   stopTimer(); renderHeader(); renderMain();
 });
