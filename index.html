@@ -1424,7 +1424,6 @@ function buildCard(ex) {
   const done    = getDone(ex.id);
   const allDone = done >= ex.sets;
   const editing = editingId === ex.id;
-  const isToday = viewDay === TODAY_IDX;
 
   const card = document.createElement('div');
   card.className = 'ex-card' + (allDone ? ' done' : '');
@@ -1461,7 +1460,6 @@ function buildCard(ex) {
     dot.dataset.ex = ex.id;
     dot.dataset.i  = String(i);
     dot.textContent = String(i + 1); // CSS hides number via font-size:0 when done
-    if (!isToday)  { dot.style.opacity = '.65'; }
     dotsRow.appendChild(dot);
   }
   const wtCol = document.createElement('div'); wtCol.className = 'wt-col';
