@@ -2294,6 +2294,26 @@ async function syncToGist() {
   }
 }
 
+async function findAndRestoreGist(token) {
+  // Search user's gists for the workout data file — no Gist ID needed
+  showSyncBar('busy', 'Finding your backup…', false);
+  try {
+    const res  = await fetch('https://api.github.com/gists?per_page=50', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const list = await res.json();
+    if (!res.ok) throw new Error(list.message || 'Could not list gists');
+
+    const found = list.find(g => g.files?.[GIST_FILENAME]);
+    if (!found) throw new Error('No workout backup found in your gists');
+
+    gistSaveId(found.id);
+    await restoreFromGist();
+  } catch(e) {
+    showSyncBar('err', '✗ ' + e.message);
+  }
+}
+
 async function restoreFromGist() {
   const token = gistToken();
   const id    = gistId();
@@ -2313,18 +2333,17 @@ async function restoreFromGist() {
     const data = JSON.parse(content);
     SYNC_KEYS.forEach(k => { if (data[k] !== undefined) lsSet(k, data[k]); });
 
-    // reload app state from localStorage
-    workouts    = lsGet('wt-plans')       || defaultData();
-    completions = lsGet('wt-done')        || {};
-    nextId      = lsGet('wt-nextid')      || 500;
-    calcWeek    = lsGet('wt-calc-week')   || 1;
-    calcStarts  = lsGet('wt-calc-starts') || {};
-    groceryChecked = lsGet('wt-grocery')  || {};
+    workouts       = lsGet('wt-plans')       || defaultData();
+    completions    = lsGet('wt-done')        || {};
+    nextId         = lsGet('wt-nextid')      || 500;
+    calcWeek       = lsGet('wt-calc-week')   || 1;
+    calcStarts     = lsGet('wt-calc-starts') || {};
+    groceryChecked = lsGet('wt-grocery')     || {};
 
     lsSet(GIST_SYNC_KEY, new Date().toISOString());
     showSyncBar('ok', '✓ Restored from GitHub');
     renderHeader(); renderMain();
-    if (document.getElementById('gistStatusVal')) renderGistStatus();
+    renderHistoryGistSection();
   } catch(e) {
     showSyncBar('err', '✗ Restore failed: ' + e.message);
   }
@@ -2347,7 +2366,6 @@ function buildGistSection() {
   const token = gistToken();
 
   if (!token) {
-    // setup card
     const card = document.createElement('div'); card.className = 'gist-setup-wrap';
 
     const title = document.createElement('div'); title.className = 'gist-setup-title';
@@ -2355,80 +2373,133 @@ function buildGistSection() {
     card.appendChild(title);
 
     const sub = document.createElement('div'); sub.className = 'gist-setup-sub';
-    sub.textContent = 'Auto-sync your data to a private\nGitHub Gist. Never lose your history.\nGet a token at github.com → Settings\n→ Developer Settings → Tokens (classic)\n→ New token → check "gist" scope.';
+    sub.textContent = 'Auto-syncs your data to a private GitHub Gist.\nGet a token: github.com → Settings → Developer\nSettings → Tokens (classic) → check "gist" scope.';
     card.appendChild(sub);
 
     const inp = document.createElement('input');
     inp.type = 'password'; inp.className = 'gist-inp';
-    inp.placeholder = 'ghp_xxxxxxxxxxxx'; inp.id = 'gistTokenInp';
+    inp.placeholder = 'Paste GitHub token (ghp_xxx…)';
     card.appendChild(inp);
-
-    const gistIdInp = document.createElement('input');
-    gistIdInp.type = 'text'; gistIdInp.className = 'gist-inp';
-    gistIdInp.placeholder = 'Existing Gist ID (optional — leave blank for new)';
-    card.appendChild(gistIdInp);
 
     const btnRow = document.createElement('div'); btnRow.className = 'gist-btn-row';
 
     const saveBtn = document.createElement('button'); saveBtn.className = 'gist-save-btn';
-    saveBtn.textContent = 'CONNECT';
+    saveBtn.textContent = 'CONNECT & SYNC';
     saveBtn.addEventListener('click', () => {
-      const t = inp.value.trim();
-      if (!t) return;
+      const t = inp.value.trim(); if (!t) return;
       gistSaveToken(t);
-      const existingId = gistIdInp.value.trim();
-      if (existingId) gistSaveId(existingId);
       syncToGist().then(() => renderHistoryGistSection());
     });
     btnRow.appendChild(saveBtn);
 
+    // Restore — token only, auto-finds the gist
     const restoreBtn = document.createElement('button'); restoreBtn.className = 'gist-restore-btn';
     restoreBtn.textContent = 'RESTORE';
+    restoreBtn.title = 'Find & restore backup using token only';
     restoreBtn.addEventListener('click', () => {
-      const t = inp.value.trim(); const id = gistIdInp.value.trim();
-      if (!t || !id) { showSyncBar('err', 'Enter token + Gist ID to restore'); return; }
-      gistSaveToken(t); gistSaveId(id);
-      restoreFromGist().then(() => renderHistoryGistSection());
+      const t = inp.value.trim(); if (!t) { showSyncBar('err', 'Enter your token first'); return; }
+      gistSaveToken(t);
+      findAndRestoreGist(t);
     });
     btnRow.appendChild(restoreBtn);
 
     card.appendChild(btnRow);
     wrap.appendChild(card);
   } else {
-    // status card
-    const row = document.createElement('div'); row.className = 'gist-status-row';
+    // connected — status card
+    const card = document.createElement('div'); card.className = 'gist-setup-wrap';
 
-    const info = document.createElement('div'); info.className = 'gist-status-info';
-    const lbl = document.createElement('div'); lbl.className = 'gist-status-label';
-    lbl.textContent = 'Last backed up';
-    const val = document.createElement('div'); val.className = 'gist-status-val';
-    val.id = 'gistStatusVal';
+    const titleRow = document.createElement('div');
+    titleRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px';
+    const title = document.createElement('div'); title.className = 'gist-setup-title';
+    title.style.marginBottom = '0';
+    title.textContent = 'GitHub Backup';
+    const connBadge = document.createElement('span');
+    connBadge.style.cssText = 'font-family:"DM Mono",monospace;font-size:9px;letter-spacing:.12em;color:#6fcf6f;text-transform:uppercase';
+    connBadge.textContent = '● Connected';
+    titleRow.appendChild(title); titleRow.appendChild(connBadge);
+    card.appendChild(titleRow);
+
+    // last synced row
+    const syncRow = document.createElement('div');
+    syncRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px';
+    const syncLbl = document.createElement('div'); syncLbl.className = 'gist-setup-sub';
+    syncLbl.style.marginBottom = '0';
+    syncLbl.textContent = 'Last backed up';
+    const syncVal = document.createElement('div'); syncVal.id = 'gistStatusVal';
+    syncVal.style.cssText = 'font-family:"DM Mono",monospace;font-size:11px;color:var(--text)';
     renderGistStatus();
-    info.appendChild(lbl); info.appendChild(val);
+    syncRow.appendChild(syncLbl); syncRow.appendChild(syncVal);
+    card.appendChild(syncRow);
 
-    const btns = document.createElement('div'); btns.className = 'gist-action-btns';
+    // gist ID row (important for reinstall reference)
+    const idRow = document.createElement('div');
+    idRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
+    const idLbl = document.createElement('div'); idLbl.className = 'gist-setup-sub';
+    idLbl.style.marginBottom = '0'; idLbl.textContent = 'Gist ID';
+    const idVal = document.createElement('div');
+    const storedId = gistId();
+    idVal.style.cssText = 'font-family:"DM Mono",monospace;font-size:9px;color:var(--text-dim);word-break:break-all;text-align:right;max-width:60%';
+    idVal.textContent = storedId ? storedId.slice(0,16) + '…' : '—';
+    idVal.title = storedId || '';
+    idRow.appendChild(idLbl); idRow.appendChild(idVal);
+    card.appendChild(idRow);
 
-    const syncNowBtn = document.createElement('button'); syncNowBtn.className = 'gist-sm-btn';
-    syncNowBtn.textContent = 'Sync Now';
+    const btns = document.createElement('div'); btns.className = 'gist-btn-row';
+
+    const syncNowBtn = document.createElement('button'); syncNowBtn.className = 'gist-save-btn';
+    syncNowBtn.style.fontSize = '15px';
+    syncNowBtn.textContent = 'SYNC NOW';
     syncNowBtn.addEventListener('click', () => syncToGist());
     btns.appendChild(syncNowBtn);
 
-    const restoreBtn = document.createElement('button'); restoreBtn.className = 'gist-sm-btn';
-    restoreBtn.textContent = 'Restore';
+    const restoreBtn = document.createElement('button'); restoreBtn.className = 'gist-restore-btn';
+    restoreBtn.style.fontSize = '15px';
+    restoreBtn.textContent = 'RESTORE';
     restoreBtn.addEventListener('click', () => restoreFromGist());
     btns.appendChild(restoreBtn);
+    card.appendChild(btns);
 
     const disconnectBtn = document.createElement('button'); disconnectBtn.className = 'gist-sm-btn';
+    disconnectBtn.style.marginTop = '8px';
     disconnectBtn.textContent = 'Disconnect';
     disconnectBtn.addEventListener('click', () => {
       lsSet(GIST_TOKEN_KEY, null); lsSet(GIST_ID_KEY, null);
       renderHistoryGistSection();
     });
-    btns.appendChild(disconnectBtn);
+    card.appendChild(disconnectBtn);
 
-    row.appendChild(info); row.appendChild(btns);
-    wrap.appendChild(row);
+    wrap.appendChild(card);
   }
+
+  // ── Check for Updates button ──────────────────────
+  const updateCard = document.createElement('div'); updateCard.className = 'gist-setup-wrap';
+  updateCard.style.marginTop = '10px';
+  const updateTitle = document.createElement('div'); updateTitle.className = 'gist-setup-title';
+  updateTitle.textContent = 'App Updates';
+  updateCard.appendChild(updateTitle);
+  const updateSub = document.createElement('div'); updateSub.className = 'gist-setup-sub';
+  updateSub.textContent = 'If the app looks outdated after a code\nchange, force a fresh reload here.';
+  updateCard.appendChild(updateSub);
+  const updateBtn = document.createElement('button'); updateBtn.className = 'gist-save-btn';
+  updateBtn.style.fontSize = '15px';
+  updateBtn.textContent = 'CHECK FOR UPDATES';
+  updateBtn.addEventListener('click', async () => {
+    updateBtn.textContent = 'Clearing cache…';
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      if (navigator.serviceWorker) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+    } catch(e) {}
+    location.reload(true);
+  });
+  updateCard.appendChild(updateBtn);
+  wrap.appendChild(updateCard);
 
   return wrap;
 }
