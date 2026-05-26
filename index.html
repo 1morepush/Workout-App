@@ -220,9 +220,18 @@ body::after {
 /* weight column — wraps chip + prev-weight reference */
 .wt-col { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; align-self: center; flex-shrink: 0; }
 .wt-col .wt-chip { margin-left: 0; }
-.prev-wt {
-  font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: .1em;
-  color: var(--text-dim); white-space: nowrap;
+.prev-wt-row {
+  display: flex; align-items: center; justify-content: flex-end;
+  padding: 4px 14px 0; gap: 6px;
+}
+.prev-wt-label {
+  font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: .13em;
+  color: var(--text-dim); text-transform: uppercase;
+}
+.prev-wt-val {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .08em;
+  color: var(--text-dim); background: var(--bg-inner);
+  border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px;
 }
 .wt-input {
   margin-left: auto; width: 74px; font-family: 'DM Mono', monospace;
@@ -524,6 +533,51 @@ body::after {
 .hist-ex-sets { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-sub); }
 .hist-ex-sets.full { color: var(--gold); }
 .hist-ex-wt { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-sub); margin-left: 8px; }
+
+/* history editing */
+.hist-card-actions {
+  display: flex; gap: 6px; margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.hist-action-btn {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .12em;
+  text-transform: uppercase; padding: 6px 11px; border-radius: 6px;
+  border: 1px solid var(--border); background: none; color: var(--text-sub);
+  cursor: pointer;
+}
+.hist-action-btn:active { border-color: var(--day-color); color: var(--day-color); }
+.hist-action-btn.danger:active { border-color: #e05; color: #e05; }
+.hist-ex-row { position: relative; }
+.hist-ex-del {
+  background: none; border: none; color: var(--text-dim); font-size: 14px;
+  padding: 4px 6px; cursor: pointer; border-radius: 4px; line-height: 1;
+  flex-shrink: 0;
+}
+.hist-ex-del:active { color: #e05; }
+.hist-ex-inp {
+  font-family: 'DM Mono', monospace; font-size: 11px; background: var(--bg-inner);
+  border: 1px solid var(--day-color); border-radius: 4px; color: var(--text);
+  padding: 2px 6px; width: 60px; outline: none;
+}
+.hist-ex-sets-inp {
+  font-family: 'DM Mono', monospace; font-size: 11px; background: var(--bg-inner);
+  border: 1px solid var(--day-color); border-radius: 4px; color: var(--text);
+  padding: 2px 6px; width: 36px; outline: none; text-align: center;
+}
+.hist-add-ex-row {
+  display: flex; gap: 6px; align-items: center; padding-top: 8px; flex-wrap: wrap;
+}
+.hist-add-ex-inp {
+  flex: 1; min-width: 0; font-family: 'Outfit', sans-serif; font-size: 12px;
+  background: var(--bg-inner); border: 1px solid var(--border-md);
+  border-radius: 6px; color: var(--text); padding: 6px 10px; outline: none;
+}
+.hist-add-ex-inp:focus { border-color: var(--day-color); }
+.hist-add-btn {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .1em;
+  padding: 6px 12px; border-radius: 6px; border: 1px solid var(--day-color);
+  background: none; color: var(--day-color); cursor: pointer; white-space: nowrap;
+}
 
 /* streak chips */
 .hist-stats { display: flex; gap: 8px; margin-bottom: 16px; }
@@ -1464,14 +1518,20 @@ function buildCard(ex) {
   }
   const wtCol = document.createElement('div'); wtCol.className = 'wt-col';
   wtCol.appendChild(buildWeightChip(ex));
-  const pw = getPrevWeight(ex.name);
-  if (pw) {
-    const pwEl = document.createElement('div'); pwEl.className = 'prev-wt';
-    pwEl.textContent = 'prev: ' + pw;
-    wtCol.appendChild(pwEl);
-  }
   dotsRow.appendChild(wtCol);
   card.appendChild(dotsRow);
+
+  // previous session weight — separate row, clearly read-only
+  const pw = getPrevWeight(ex.name);
+  if (pw) {
+    const pwRow = document.createElement('div'); pwRow.className = 'prev-wt-row';
+    const pwLabel = document.createElement('span'); pwLabel.className = 'prev-wt-label';
+    pwLabel.textContent = 'Last session:';
+    const pwVal = document.createElement('span'); pwVal.className = 'prev-wt-val';
+    pwVal.textContent = pw;
+    pwRow.appendChild(pwLabel); pwRow.appendChild(pwVal);
+    card.appendChild(pwRow);
+  }
 
   // REST button
   const restBtn = document.createElement('button');
@@ -2800,24 +2860,124 @@ function buildHistCard(dateStr, entry) {
   // exercises detail (shown on expand)
   if (entry.type !== 'rest' && entry.exercises && entry.exercises.length > 0) {
     const exList = document.createElement('div'); exList.className = 'hist-exercises';
-    entry.exercises.forEach(ex => {
-      const row  = document.createElement('div'); row.className = 'hist-ex-row';
-      const name = document.createElement('div'); name.className = 'hist-ex-name'; name.textContent = ex.name;
-      const meta = document.createElement('div'); meta.style.display = 'flex'; meta.style.alignItems = 'center';
-      const sets = document.createElement('div');
-      sets.className = 'hist-ex-sets' + (ex.done >= ex.sets ? ' full' : '');
-      sets.textContent = ex.done + '/' + ex.sets + ' sets';
-      meta.appendChild(sets);
-      if (ex.weight) {
-        const wt = document.createElement('div'); wt.className = 'hist-ex-wt'; wt.textContent = ex.weight;
-        meta.appendChild(wt);
-      }
-      row.appendChild(name); row.appendChild(meta);
-      exList.appendChild(row);
-    });
-    card.appendChild(exList);
+    let editing = false;
 
-    // toggle expand on tap
+    function rebuildExRows() {
+      exList.textContent = '';
+      const history = lsGet('wt-history') || {};
+      const current = history[dateStr];
+      if (!current) return;
+
+      current.exercises.forEach((ex, idx) => {
+        const row  = document.createElement('div'); row.className = 'hist-ex-row';
+        const name = document.createElement('div'); name.className = 'hist-ex-name'; name.textContent = ex.name;
+        const meta = document.createElement('div'); meta.style.cssText = 'display:flex;align-items:center;gap:6px';
+
+        if (editing) {
+          // editable sets done
+          const setsInp = document.createElement('input'); setsInp.type = 'number';
+          setsInp.className = 'hist-ex-sets-inp'; setsInp.value = ex.done;
+          setsInp.min = '0'; setsInp.max = ex.sets;
+          setsInp.addEventListener('change', () => {
+            const h = lsGet('wt-history') || {};
+            h[dateStr].exercises[idx].done = Math.max(0, Math.min(ex.sets, parseInt(setsInp.value)||0));
+            // recalc doneSets
+            h[dateStr].doneSets = h[dateStr].exercises.reduce((a,e) => a + (e.done||0), 0);
+            lsSet('wt-history', h); scheduleSyncToGist();
+          });
+          const setsLbl = document.createElement('span'); setsLbl.className = 'hist-ex-sets';
+          setsLbl.textContent = '/' + ex.sets;
+
+          // editable weight
+          const wtInp = document.createElement('input'); wtInp.type = 'text';
+          wtInp.className = 'hist-ex-inp'; wtInp.value = ex.weight || '';
+          wtInp.placeholder = 'weight';
+          wtInp.addEventListener('change', () => {
+            const h = lsGet('wt-history') || {};
+            h[dateStr].exercises[idx].weight = wtInp.value.trim();
+            lsSet('wt-history', h); scheduleSyncToGist();
+          });
+
+          // delete exercise
+          const delBtn = document.createElement('button'); delBtn.className = 'hist-ex-del';
+          delBtn.textContent = '×';
+          delBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            const h = lsGet('wt-history') || {};
+            h[dateStr].exercises.splice(idx, 1);
+            h[dateStr].totalSets = h[dateStr].exercises.reduce((a,e2) => a + (e2.sets||0), 0);
+            h[dateStr].doneSets  = h[dateStr].exercises.reduce((a,e2) => a + (e2.done||0), 0);
+            lsSet('wt-history', h); scheduleSyncToGist();
+            rebuildExRows();
+          });
+
+          meta.appendChild(setsInp); meta.appendChild(setsLbl); meta.appendChild(wtInp);
+          row.appendChild(name); row.appendChild(meta); row.appendChild(delBtn);
+        } else {
+          const sets = document.createElement('div');
+          sets.className = 'hist-ex-sets' + (ex.done >= ex.sets ? ' full' : '');
+          sets.textContent = ex.done + '/' + ex.sets + ' sets';
+          meta.appendChild(sets);
+          if (ex.weight) {
+            const wt = document.createElement('div'); wt.className = 'hist-ex-wt'; wt.textContent = ex.weight;
+            meta.appendChild(wt);
+          }
+          row.appendChild(name); row.appendChild(meta);
+        }
+        exList.appendChild(row);
+      });
+
+      // add exercise row (edit mode only)
+      if (editing) {
+        const addRow = document.createElement('div'); addRow.className = 'hist-add-ex-row';
+        const nameInp = document.createElement('input'); nameInp.className = 'hist-add-ex-inp';
+        nameInp.placeholder = 'Exercise name';
+        const wtInp = document.createElement('input'); wtInp.type = 'text';
+        wtInp.className = 'hist-ex-inp'; wtInp.placeholder = 'weight'; wtInp.style.width = '70px';
+        const addBtn = document.createElement('button'); addBtn.className = 'hist-add-btn';
+        addBtn.textContent = '+ Add';
+        addBtn.addEventListener('click', () => {
+          const n = nameInp.value.trim(); if (!n) return;
+          const h = lsGet('wt-history') || {};
+          const newEx = { id: Date.now(), name: n, sets: 1, reps: 1, done: 1, weight: wtInp.value.trim() };
+          h[dateStr].exercises.push(newEx);
+          h[dateStr].totalSets = h[dateStr].exercises.reduce((a,e) => a + (e.sets||0), 0);
+          h[dateStr].doneSets  = h[dateStr].exercises.reduce((a,e) => a + (e.done||0), 0);
+          lsSet('wt-history', h); scheduleSyncToGist();
+          nameInp.value = ''; wtInp.value = '';
+          rebuildExRows();
+        });
+        addRow.appendChild(nameInp); addRow.appendChild(wtInp); addRow.appendChild(addBtn);
+        exList.appendChild(addRow);
+      }
+
+      // action buttons
+      const actions = document.createElement('div'); actions.className = 'hist-card-actions';
+
+      const editToggle = document.createElement('button'); editToggle.className = 'hist-action-btn';
+      editToggle.textContent = editing ? 'Done Editing' : 'Edit Session';
+      editToggle.addEventListener('click', e => {
+        e.stopPropagation(); editing = !editing; rebuildExRows();
+      });
+      actions.appendChild(editToggle);
+
+      if (!editing) {
+        const delSession = document.createElement('button'); delSession.className = 'hist-action-btn danger';
+        delSession.textContent = 'Delete Session';
+        delSession.addEventListener('click', e => {
+          e.stopPropagation();
+          const h = lsGet('wt-history') || {};
+          delete h[dateStr];
+          lsSet('wt-history', h); scheduleSyncToGist();
+          card.remove();
+        });
+        actions.appendChild(delSession);
+      }
+      exList.appendChild(actions);
+    }
+
+    rebuildExRows();
+    card.appendChild(exList);
     card.addEventListener('click', () => card.classList.toggle('expanded'));
   }
 
