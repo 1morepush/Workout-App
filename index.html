@@ -767,6 +767,44 @@ body::after {
 }
 .coach-sug-btn:active { border-color: var(--day-color); color: var(--day-color); }
 
+/* sessions list */
+.coach-list { flex: 1; overflow-y: auto; padding: 16px 14px; display: flex; flex-direction: column; }
+.coach-new-btn {
+  width: 100%; background: var(--day-color); color: #111; border: none;
+  border-radius: 10px; padding: 14px; font-family: 'Bebas Neue', cursive;
+  font-size: 20px; letter-spacing: .1em; cursor: pointer; margin-bottom: 20px; flex-shrink: 0;
+}
+.coach-new-btn:active { opacity: .8; }
+.coach-session-item {
+  display: flex; align-items: center; padding: 14px 0;
+  border-bottom: 1px solid var(--border); cursor: pointer; gap: 12px;
+}
+.coach-session-item:first-of-type { border-top: 1px solid var(--border); }
+.coach-session-info { flex: 1; min-width: 0; }
+.coach-session-date {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .12em;
+  color: var(--text-dim); text-transform: uppercase; margin-bottom: 3px;
+}
+.coach-session-preview {
+  font-family: 'Outfit', sans-serif; font-size: 14px; color: var(--text-sub);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.coach-session-del {
+  background: none; border: none; color: var(--text-dim); font-size: 14px;
+  cursor: pointer; padding: 6px 4px; flex-shrink: 0; line-height: 1;
+}
+.coach-session-del:active { color: var(--text); }
+.coach-list-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 10px; padding: 32px;
+}
+.coach-back-btn {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .14em;
+  color: var(--text-dim); background: none; border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 10px; cursor: pointer; text-transform: uppercase;
+}
+.coach-back-btn:active { border-color: var(--day-color); color: var(--day-color); }
+
 /* ── MEAL VIEW ───────────────────────────────────── */
 #mealView { flex: 1; padding: 16px 14px 20px; display: none; flex-direction: column; gap: 0; overflow-y: auto; }
 #mealView.show { display: flex; }
@@ -1306,6 +1344,7 @@ let workouts    = lsGet('wt-plans')  || defaultData();
 let completions = lsGet('wt-done')   || {};
 let nextId      = lsGet('wt-nextid') || 500;
 let editingId   = null;
+let coachActiveSessionId = null; // null=list, 'new'=blank chat, 'session_xxx'=existing
 let viewDay     = TODAY_IDX;
 let timer       = {active:false, secs:90, iv:null, forExId:null};
 
@@ -2598,6 +2637,7 @@ document.getElementById('bottomNav').addEventListener('click', e => {
   if (!tab) return;
   const t = tab.dataset.tab;
   if (t === currentTab) return;
+  if (currentTab === 'coach') coachActiveSessionId = null;
   currentTab = t;
 
   document.querySelectorAll('.nav-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
@@ -3001,13 +3041,48 @@ function calcStreak(sortedDates) {
 //  COACH (AI Personal Trainer — Google Gemini)
 // ═══════════════════════════════════════════════════════════════
 
-const COACH_KEY_STORE  = 'wt-coach-key';
-const COACH_MSGS_STORE = 'wt-coach-msgs';
+const COACH_KEY_STORE      = 'wt-coach-key';
+const COACH_MSGS_STORE     = 'wt-coach-msgs';     // legacy — migration only
+const COACH_SESSIONS_STORE = 'wt-coach-sessions';
 
-function coachGetKey()  { return lsGet(COACH_KEY_STORE) || ''; }
-function coachSaveKey(k){ lsSet(COACH_KEY_STORE, k); }
-function coachGetMsgs() { return lsGet(COACH_MSGS_STORE) || []; }
-function coachSaveMsgs(m){ lsSet(COACH_MSGS_STORE, m); }
+function coachGetKey()   { return lsGet(COACH_KEY_STORE) || ''; }
+function coachSaveKey(k) { lsSet(COACH_KEY_STORE, k); }
+
+function coachGetSessions() {
+  const stored = lsGet(COACH_SESSIONS_STORE);
+  if (stored !== null) return stored;
+  // First launch — migrate legacy wt-coach-msgs if present
+  const legacy = lsGet(COACH_MSGS_STORE) || [];
+  const initial = [];
+  if (legacy.length > 0) {
+    initial.push({
+      id: 'session_' + Date.now(),
+      createdAt: new Date().toISOString(),
+      preview: legacy.find(m => m.role === 'user')?.text?.slice(0, 60) || 'Previous chat',
+      messages: legacy,
+    });
+    localStorage.removeItem(COACH_MSGS_STORE);
+  }
+  lsSet(COACH_SESSIONS_STORE, initial);
+  return initial;
+}
+function coachSaveSessions(s) { lsSet(COACH_SESSIONS_STORE, s); }
+function coachGetSession(id)  { return coachGetSessions().find(s => s.id === id) || null; }
+function coachUpdateSession(id, updates) {
+  const all = coachGetSessions(), idx = all.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  Object.assign(all[idx], updates);
+  coachSaveSessions(all);
+}
+
+function formatSessionDate(isoStr) {
+  const d = new Date(isoStr), now = new Date();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === now.toDateString())
+    return 'Today · ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return DAYS_S[d.getDay()] + ', ' + MONTHS_S[d.getMonth()] + ' ' + d.getDate();
+}
 
 function buildCoachSystemPrompt() {
   const day = workouts[TODAY_IDX];
@@ -3059,13 +3134,10 @@ function buildCoachSystemPrompt() {
 function renderCoach() {
   const container = document.getElementById('coachView');
   container.innerHTML = '';
-
   const key = coachGetKey();
-  if (!key) {
-    renderCoachSetup(container);
-    return;
-  }
-  renderCoachChat(container, key);
+  if (!key) { renderCoachSetup(container); return; }
+  if (coachActiveSessionId) renderCoachChat(container, key);
+  else renderCoachList(container, key);
 }
 
 function renderCoachSetup(container) {
@@ -3076,48 +3148,109 @@ function renderCoachSetup(container) {
   wrap.appendChild(title);
 
   const sub = document.createElement('div'); sub.className = 'coach-setup-sub';
-  sub.textContent = 'Enter your Google Gemini API key\nto activate your personal trainer.\nFree at aistudio.google.com';
+  sub.textContent = 'Enter your Groq API key to\nactivate your personal trainer.\nFree at console.groq.com';
   wrap.appendChild(sub);
 
   const inp = document.createElement('input');
   inp.type = 'password'; inp.className = 'coach-key-inp';
-  inp.placeholder = 'AIza...';
+  inp.placeholder = 'gsk_...';
   wrap.appendChild(inp);
 
   const btn = document.createElement('button'); btn.className = 'coach-save-btn';
   btn.textContent = 'ACTIVATE COACH';
   btn.addEventListener('click', () => {
-    const val = inp.value.trim();
-    if (!val) return;
-    coachSaveKey(val);
-    renderCoach();
+    const val = inp.value.trim(); if (!val) return;
+    coachSaveKey(val); renderCoach();
   });
   wrap.appendChild(btn);
-
   container.appendChild(wrap);
   inp.focus();
 }
 
-function renderCoachChat(container, key) {
+function renderCoachList(container, key) {
   // header
   const header = document.createElement('div'); header.className = 'coach-header';
   const title = document.createElement('div'); title.className = 'coach-title';
   title.textContent = 'AI COACH';
   header.appendChild(title);
 
-  const headerBtns = document.createElement('div');
-  headerBtns.style.cssText = 'display:flex;gap:6px';
-
   const changeKeyBtn = document.createElement('button'); changeKeyBtn.className = 'coach-clear-btn';
   changeKeyBtn.textContent = 'Change Key';
-  changeKeyBtn.addEventListener('click', () => { coachSaveKey(''); coachSaveMsgs([]); renderCoach(); });
-  headerBtns.appendChild(changeKeyBtn);
+  changeKeyBtn.addEventListener('click', () => { coachSaveKey(''); renderCoach(); });
+  header.appendChild(changeKeyBtn);
+  container.appendChild(header);
 
+  // scrollable list body
+  const list = document.createElement('div'); list.className = 'coach-list';
+
+  // new chat button
+  const newBtn = document.createElement('button'); newBtn.className = 'coach-new-btn';
+  newBtn.textContent = '+ New Chat';
+  newBtn.addEventListener('click', () => {
+    coachActiveSessionId = 'new';
+    renderCoach();
+  });
+  list.appendChild(newBtn);
+
+  const sessions = coachGetSessions();
+  if (sessions.length === 0) {
+    const empty = document.createElement('div'); empty.className = 'coach-list-empty';
+    const ico = document.createElement('div'); ico.className = 'coach-empty-icon'; ico.textContent = '🤖';
+    const txt = document.createElement('div'); txt.className = 'coach-empty-text';
+    txt.textContent = 'No chats yet.\nTap New Chat to get started.';
+    empty.appendChild(ico); empty.appendChild(txt);
+    list.appendChild(empty);
+  } else {
+    sessions.forEach(session => {
+      const item = document.createElement('div'); item.className = 'coach-session-item';
+
+      const info = document.createElement('div'); info.className = 'coach-session-info';
+      const dateEl = document.createElement('div'); dateEl.className = 'coach-session-date';
+      dateEl.textContent = formatSessionDate(session.createdAt);
+      const prev = document.createElement('div'); prev.className = 'coach-session-preview';
+      prev.textContent = session.preview || 'Empty chat';
+      info.appendChild(dateEl); info.appendChild(prev);
+
+      const del = document.createElement('button'); del.className = 'coach-session-del';
+      del.textContent = '✕';
+      del.addEventListener('click', e => {
+        e.stopPropagation();
+        coachSaveSessions(coachGetSessions().filter(s => s.id !== session.id));
+        renderCoach();
+      });
+
+      item.appendChild(info); item.appendChild(del);
+      item.addEventListener('click', () => { coachActiveSessionId = session.id; renderCoach(); });
+      list.appendChild(item);
+    });
+  }
+
+  container.appendChild(list);
+}
+
+function renderCoachChat(container, key) {
+  const sessionId = coachActiveSessionId;
+  // for a brand-new chat, messages come from an in-memory array until first save
+  let liveMsgs = sessionId === 'new' ? [] : (coachGetSession(sessionId)?.messages || []);
+
+  // header
+  const header = document.createElement('div'); header.className = 'coach-header';
+
+  const backBtn = document.createElement('button'); backBtn.className = 'coach-back-btn';
+  backBtn.textContent = '← Back';
+  backBtn.addEventListener('click', () => { coachActiveSessionId = null; renderCoach(); });
+  header.appendChild(backBtn);
+
+  const headerBtns = document.createElement('div'); headerBtns.style.cssText = 'display:flex;gap:6px';
   const clearBtn = document.createElement('button'); clearBtn.className = 'coach-clear-btn';
-  clearBtn.textContent = 'Clear Chat';
-  clearBtn.addEventListener('click', () => { coachSaveMsgs([]); renderCoach(); });
+  clearBtn.textContent = 'Clear';
+  clearBtn.addEventListener('click', () => {
+    if (sessionId !== 'new') coachUpdateSession(sessionId, { messages: [], preview: '' });
+    liveMsgs = [];
+    msgsEl.innerHTML = '';
+    renderCoachEmpty(msgsEl);
+  });
   headerBtns.appendChild(clearBtn);
-
   header.appendChild(headerBtns);
   container.appendChild(header);
 
@@ -3125,11 +3258,10 @@ function renderCoachChat(container, key) {
   const msgsEl = document.createElement('div'); msgsEl.className = 'coach-msgs';
   container.appendChild(msgsEl);
 
-  const msgs = coachGetMsgs();
-  if (msgs.length === 0) {
+  if (liveMsgs.length === 0) {
     renderCoachEmpty(msgsEl);
   } else {
-    msgs.forEach(m => appendCoachBubble(msgsEl, m.role, m.text));
+    liveMsgs.forEach(m => appendCoachBubble(msgsEl, m.role, m.text));
     setTimeout(() => { msgsEl.scrollTop = msgsEl.scrollHeight; }, 0);
   }
 
@@ -3144,27 +3276,40 @@ function renderCoachChat(container, key) {
   inp.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
   });
-
   const sendBtn = document.createElement('button'); sendBtn.className = 'coach-send-btn';
   sendBtn.innerHTML = '&#9650;';
   sendBtn.addEventListener('click', sendMsg);
-
-  bar.appendChild(inp);
-  bar.appendChild(sendBtn);
+  bar.appendChild(inp); bar.appendChild(sendBtn);
   container.appendChild(bar);
+
+  function saveToSession(msgs) {
+    const preview = msgs.find(m => m.role === 'user')?.text?.slice(0, 60) || '';
+    if (coachActiveSessionId === 'new') {
+      const newSession = {
+        id: 'session_' + Date.now(),
+        createdAt: new Date().toISOString(),
+        preview,
+        messages: msgs,
+      };
+      const all = coachGetSessions();
+      all.unshift(newSession);
+      coachSaveSessions(all);
+      coachActiveSessionId = newSession.id;
+    } else {
+      coachUpdateSession(coachActiveSessionId, { messages: msgs, preview });
+    }
+  }
 
   function sendMsg() {
     const text = inp.value.trim();
     if (!text || sendBtn.disabled) return;
     inp.value = ''; inp.style.height = 'auto'; sendBtn.disabled = true;
 
-    // remove empty state
     const emptyEl = msgsEl.querySelector('.coach-empty');
     if (emptyEl) emptyEl.remove();
 
-    const allMsgs = coachGetMsgs();
-    allMsgs.push({ role: 'user', text });
-    coachSaveMsgs(allMsgs);
+    liveMsgs.push({ role: 'user', text });
+    saveToSession(liveMsgs);
     appendCoachBubble(msgsEl, 'user', text);
 
     // typing indicator
@@ -3175,41 +3320,31 @@ function renderCoachChat(container, key) {
     msgsEl.appendChild(typingEl);
     msgsEl.scrollTop = msgsEl.scrollHeight;
 
-    // build messages array for Groq (OpenAI-compatible format)
     const groqMessages = [{ role: 'system', content: buildCoachSystemPrompt() }];
-    coachGetMsgs().forEach(m => {
+    liveMsgs.forEach(m => {
       groqMessages.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text });
     });
 
     fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: groqMessages,
-        max_tokens: 512,
-        temperature: 0.7,
-      }),
+      body: JSON.stringify({ model: 'llama-3.1-8b-instant', messages: groqMessages, max_tokens: 512, temperature: 0.7 }),
     })
     .then(r => r.json())
     .then(data => {
-      typingEl.remove();
-      sendBtn.disabled = false;
+      typingEl.remove(); sendBtn.disabled = false;
       const reply = data?.choices?.[0]?.message?.content;
       if (reply) {
-        const saved = coachGetMsgs();
-        saved.push({ role: 'ai', text: reply });
-        coachSaveMsgs(saved);
+        liveMsgs.push({ role: 'ai', text: reply });
+        saveToSession(liveMsgs);
         appendCoachBubble(msgsEl, 'ai', reply);
       } else {
-        const errMsg = data?.error?.message || 'No response. Check your API key.';
-        appendCoachBubble(msgsEl, 'ai', '⚠️ ' + errMsg);
+        appendCoachBubble(msgsEl, 'ai', '⚠️ ' + (data?.error?.message || 'No response. Check your API key.'));
       }
       msgsEl.scrollTop = msgsEl.scrollHeight;
     })
     .catch(() => {
-      typingEl.remove();
-      sendBtn.disabled = false;
+      typingEl.remove(); sendBtn.disabled = false;
       appendCoachBubble(msgsEl, 'ai', '⚠️ Network error. Check your connection.');
       msgsEl.scrollTop = msgsEl.scrollHeight;
     });
@@ -3220,20 +3355,14 @@ function renderCoachChat(container, key) {
 
 function renderCoachEmpty(msgsEl) {
   const wrap = document.createElement('div'); wrap.className = 'coach-empty';
-  const icon = document.createElement('div'); icon.className = 'coach-empty-icon';
-  icon.textContent = '🤖';
+  const icon = document.createElement('div'); icon.className = 'coach-empty-icon'; icon.textContent = '🤖';
   const txt = document.createElement('div'); txt.className = 'coach-empty-text';
   txt.textContent = "Your AI coach knows your plan,\nyour weights, and your history.\nAsk anything.";
   wrap.appendChild(icon); wrap.appendChild(txt);
 
   const sugs = document.createElement('div'); sugs.className = 'coach-suggestions';
-  const suggestions = [
-    "Should I deload this week?",
-    "What muscles am I neglecting?",
-    "Shoulder hurts on bench — alternatives?",
-    "Am I progressing fast enough?",
-  ];
-  suggestions.forEach(s => {
+  ['Should I deload this week?', 'What muscles am I neglecting?',
+   'Shoulder hurts on bench — alternatives?', 'Am I progressing fast enough?'].forEach(s => {
     const btn = document.createElement('button'); btn.className = 'coach-sug-btn';
     btn.textContent = s;
     btn.addEventListener('click', () => {
@@ -3249,15 +3378,11 @@ function renderCoachEmpty(msgsEl) {
 function appendCoachBubble(msgsEl, role, text) {
   const msg = document.createElement('div');
   msg.className = 'coach-msg ' + (role === 'user' ? 'user' : 'ai');
-
   const label = document.createElement('div'); label.className = 'coach-bubble-label';
   label.textContent = role === 'user' ? 'You' : 'Coach';
-  msg.appendChild(label);
-
   const bubble = document.createElement('div'); bubble.className = 'coach-bubble';
   bubble.textContent = text;
-  msg.appendChild(bubble);
-
+  msg.appendChild(label); msg.appendChild(bubble);
   msgsEl.appendChild(msg);
 }
 
