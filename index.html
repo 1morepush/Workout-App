@@ -338,7 +338,7 @@ body::after {
 .tip-body strong { color: var(--text); font-weight: 600; }
 
 /* ── FAB ─────────────────────────────────────────── */
-.fab-wrap { position: fixed; bottom: calc(84px + var(--safe-b)); right: 17px; z-index: 200; display: flex; flex-direction: column; align-items: flex-end; gap: 9px; }
+.fab-wrap { position: fixed; bottom: calc(84px + var(--safe-b)); left: 17px; z-index: 200; display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
 .fab {
   width: 52px; height: 52px; border-radius: 50%; background: var(--day-color); border: none;
   color: #0D0C0A; font-size: 24px; display: flex; align-items: center; justify-content: center;
@@ -1323,6 +1323,8 @@ const EXERCISE_MUSCLES = {
 // ═══════════════════════════════════════════════════════════════
 //  STATE + STORAGE
 // ═══════════════════════════════════════════════════════════════
+
+const APP_VERSION = 'v1.2';
 
 const TODAY_IDX = new Date().getDay();
 const TODAY_STR = new Date().toISOString().slice(0,10);
@@ -2716,11 +2718,15 @@ function renderHistory() {
 
   // header
   const hdr = document.createElement('div'); hdr.className = 'hist-header';
+  const hdrTop = document.createElement('div'); hdrTop.style.cssText = 'display:flex;align-items:flex-end;justify-content:space-between';
   const ttl = document.createElement('div'); ttl.className = 'hist-title'; ttl.textContent = 'HISTORY';
+  const ver = document.createElement('div'); ver.style.cssText = 'font-family:"DM Mono",monospace;font-size:9px;letter-spacing:.14em;color:var(--text-dim);padding-bottom:4px';
+  ver.textContent = APP_VERSION;
+  hdrTop.appendChild(ttl); hdrTop.appendChild(ver);
   const sub = document.createElement('div'); sub.className = 'hist-sub';
   sub.textContent = dates.length === 0 ? 'No sessions logged yet'
     : dates.length + ' session' + (dates.length === 1 ? '' : 's') + ' logged';
-  hdr.appendChild(ttl); hdr.appendChild(sub);
+  hdr.appendChild(hdrTop); hdr.appendChild(sub);
   container.appendChild(hdr);
 
   // gist backup section
