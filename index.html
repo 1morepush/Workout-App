@@ -1324,23 +1324,49 @@ const EXERCISE_MUSCLES = {
 //  STATE + STORAGE
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v1.2';
+const APP_VERSION = 'v1.3';
+
+// YYYY-MM-DD in the user's OWN timezone. Never use toISOString() for date keys —
+// it converts to UTC, so evenings west of UTC would log under tomorrow's date.
+function isoLocal(d) {
+  return d.getFullYear() + '-' +
+         String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0');
+}
 
 const TODAY_IDX = new Date().getDay();
-const TODAY_STR = new Date().toISOString().slice(0,10);
+const TODAY_STR = isoLocal(new Date());
 const DAYS_S    = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 
-// Returns the ISO date string for the currently viewed day (today or past days in this week)
-function viewDayStr() {
+// The actual calendar date of the day currently being viewed. Day pills always
+// refer to the most recent occurrence of that weekday (today, or up to 6 days back).
+// Anchored at noon so DST transitions can't shift it across a date boundary.
+function viewDayDate() {
   const diff = (TODAY_IDX - viewDay + 7) % 7;
   const d = new Date();
+  d.setHours(12, 0, 0, 0);
   d.setDate(d.getDate() - diff);
-  return d.toISOString().slice(0, 10);
+  return d;
 }
+function viewDayStr() { return isoLocal(viewDayDate()); }
+
 const MONTHS_S  = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
 function lsGet(k)   { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
-function lsSet(k,v) { localStorage.setItem(k, JSON.stringify(v)); }
+function lsSet(k,v) {
+  try {
+    localStorage.setItem(k, JSON.stringify(v));
+    return true;
+  } catch (e) {
+    // Quota full, or Safari private mode. Failing silently here loses the set
+    // the user just logged, so make it visible instead.
+    console.error('Storage write failed for ' + k, e);
+    if (typeof showSyncBar === 'function') {
+      showSyncBar('err', '✗ Could not save — device storage is full');
+    }
+    return false;
+  }
+}
 
 let workouts    = lsGet('wt-plans')  || defaultData();
 let completions = lsGet('wt-done')   || {};
@@ -1348,7 +1374,7 @@ let nextId      = lsGet('wt-nextid') || 500;
 let editingId   = null;
 let coachActiveSessionId = null; // null=list, 'new'=blank chat, 'session_xxx'=existing
 let viewDay     = TODAY_IDX;
-let timer       = {active:false, secs:90, iv:null, forExId:null};
+let timer       = {active:false, secs:90, iv:null, forExId:null, endsAt:0};
 
 function saveAll() { lsSet('wt-plans',workouts); lsSet('wt-done',completions); lsSet('wt-nextid',nextId); scheduleSyncToGist(); }
 
@@ -1368,33 +1394,49 @@ function currentDayColor() { return TYPE_COLOR[workouts[viewDay].type] || '#C9A8
 //  TIMER
 // ═══════════════════════════════════════════════════════════════
 
+const REST_SECS = 90;
+
 function startTimer(exId) {
   // reset previous active button
   if (timer.forExId) resetRestBtn(timer.forExId);
   if (timer.iv) clearInterval(timer.iv);
 
-  timer.secs   = 90;
-  timer.active = true;
+  // Wall-clock deadline, not a decrementing counter: background tabs get their
+  // intervals throttled or suspended, which used to make the timer run slow.
+  timer.endsAt  = Date.now() + REST_SECS * 1000;
+  timer.secs    = REST_SECS;
+  timer.active  = true;
   timer.forExId = exId;
 
   updateRestBtn();
-  timer.iv = setInterval(() => {
-    timer.secs--;
-    if (timer.secs <= 0) {
-      stopTimer();
-      navigator.vibrate && navigator.vibrate([80,40,80,40,120]);
-      return;
-    }
-    updateRestBtn();
-  }, 1000);
+  timer.iv = setInterval(tickTimer, 250);
   navigator.vibrate && navigator.vibrate(40);
 }
+
+function tickTimer() {
+  if (!timer.active) return;
+  const remain = Math.max(0, Math.ceil((timer.endsAt - Date.now()) / 1000));
+  if (remain === timer.secs) return;   // no visible change, skip the DOM write
+  timer.secs = remain;
+  if (remain <= 0) {
+    stopTimer();
+    navigator.vibrate && navigator.vibrate([80,40,80,40,120]);
+    return;
+  }
+  updateRestBtn();
+}
+
+// Coming back from a locked screen: re-sync immediately instead of waiting a tick.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && timer.active) tickTimer();
+});
 
 function stopTimer() {
   clearInterval(timer.iv); timer.iv = null;
   if (timer.forExId) resetRestBtn(timer.forExId);
   timer.active  = false;
-  timer.secs    = 90;
+  timer.secs    = REST_SECS;
+  timer.endsAt  = 0;
   timer.forExId = null;
 }
 
@@ -1427,10 +1469,8 @@ function renderHeader() {
   // update CSS variable for the viewing day color
   document.documentElement.style.setProperty('--day-color', color);
 
-  // date pill
-  const now = new Date();
-  const d   = new Date(now);
-  d.setDate(d.getDate() + (viewDay - TODAY_IDX));
+  // date pill — must use the same date the app reads/writes for this day
+  const d = viewDayDate();
   document.getElementById('hdrDatePill').textContent =
     DAYS_S[viewDay] + ', ' + MONTHS_S[d.getMonth()] + ' ' + d.getDate();
 
@@ -1774,10 +1814,14 @@ function inlineEditWeight(exId, chip) {
   const inp=document.createElement('input');
   inp.type='text'; inp.className='wt-input'; inp.value=ex.weight||''; inp.placeholder='e.g. 135 lbs';
   chip.replaceWith(inp); inp.focus(); inp.select();
+  let committed=false;
   function commit() {
+    if (committed) return;           // blur + Enter can both fire
+    committed=true;
     ex.weight=inp.value.trim(); saveAll();
-    const newChip=buildWeightChip(ex); inp.replaceWith(newChip);
-    newChip.addEventListener('click',()=>inlineEditWeight(newChip.dataset.wt,newChip));
+    // No direct click listener here — #main already delegates [data-wt],
+    // and adding one made every later tap open two editors.
+    inp.replaceWith(buildWeightChip(ex));
   }
   inp.addEventListener('blur',commit);
   inp.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ev.preventDefault();inp.blur();} if(ev.key==='Escape'){inp.value=ex.weight||'';inp.blur();} });
@@ -1829,7 +1873,13 @@ document.getElementById('addConfirm').addEventListener('click',()=>{
 document.getElementById('fabReset').addEventListener('click',()=>document.getElementById('resetDialog').classList.add('open'));
 document.getElementById('resetNo').addEventListener('click', ()=>document.getElementById('resetDialog').classList.remove('open'));
 document.getElementById('resetYes').addEventListener('click',()=>{
-  const ds=viewDayStr();if(completions[ds]){delete completions[ds];lsSet('wt-done',completions);}
+  const ds=viewDayStr();
+  if(completions[ds]){delete completions[ds];lsSet('wt-done',completions);}
+  // Also drop the history snapshot for that day, or the History tab keeps
+  // reporting the sets we just cleared.
+  const hist=lsGet('wt-history')||{};
+  if(hist[ds]){delete hist[ds];lsSet('wt-history',hist);}
+  scheduleSyncToGist();
   document.getElementById('resetDialog').classList.remove('open');
   stopTimer(); renderHeader(); renderMain();
 });
@@ -1846,6 +1896,9 @@ function goDay(idx) {
 let sx=0,sy=0;
 document.getElementById('app').addEventListener('touchstart',e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;},{passive:true});
 document.getElementById('app').addEventListener('touchend',e=>{
+  // Only swipe-to-change-day on the Train tab — the Coach, Meal and History views
+  // live inside #app too, and a sideways scroll there used to move the workout day.
+  if (currentTab !== 'train') return;
   const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
   if (Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.5) goDay(viewDay+(dx<0?1:-1));
 },{passive:true});
@@ -2327,7 +2380,7 @@ const GIST_TOKEN_KEY = 'wt-gh-token';
 const GIST_ID_KEY    = 'wt-gh-gist-id';
 const GIST_SYNC_KEY  = 'wt-gh-last-sync';
 const GIST_FILENAME  = 'workout-data.json';
-const SYNC_KEYS = ['wt-plans','wt-done','wt-nextid','wt-history','wt-grocery','wt-calc-week','wt-calc-starts'];
+const SYNC_KEYS = ['wt-plans','wt-done','wt-nextid','wt-history','wt-grocery','wt-calc-week','wt-calc-starts','wt-coach-sessions'];
 
 let syncTimer = null;
 
@@ -2420,6 +2473,15 @@ async function restoreFromGist() {
   const id    = gistId();
   if (!token || !id) { showSyncBar('err', 'No Gist configured'); return; }
 
+  // Restoring replaces everything on this device. Say so before doing it.
+  const localSessions = Object.keys(lsGet('wt-history') || {}).length;
+  if (!confirm(
+    'Restore from GitHub?\n\n' +
+    'This replaces all workout data on this device' +
+    (localSessions ? ` (${localSessions} logged session${localSessions === 1 ? '' : 's'})` : '') +
+    ' with the backup. This cannot be undone.'
+  )) return;
+
   showSyncBar('busy', 'Restoring…', false);
   try {
     const res  = await fetch(`https://api.github.com/gists/${id}`, {
@@ -2428,7 +2490,15 @@ async function restoreFromGist() {
     const json = await res.json();
     if (!res.ok) throw new Error(json.message || 'Fetch failed');
 
-    const content = json.files?.[GIST_FILENAME]?.content;
+    const file = json.files?.[GIST_FILENAME];
+    // Gists over 1MB come back truncated — the full copy lives at raw_url.
+    // Without this, a long history restores as invalid JSON or partial data.
+    let content = file?.content;
+    if (file?.truncated && file?.raw_url) {
+      const rawRes = await fetch(file.raw_url);
+      if (!rawRes.ok) throw new Error('Could not fetch full backup');
+      content = await rawRes.text();
+    }
     if (!content) throw new Error('No data file found in Gist');
 
     const data = JSON.parse(content);
