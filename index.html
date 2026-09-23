@@ -4099,9 +4099,10 @@ function calcStreak(sortedDates) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  COACH (AI Personal Trainer — Google Gemini)
+//  COACH (AI Personal Trainer — Groq)
 // ═══════════════════════════════════════════════════════════════
 
+const COACH_MODEL          = 'openai/gpt-oss-20b';
 const COACH_KEY_STORE      = 'wt-coach-key';
 const COACH_MSGS_STORE     = 'wt-coach-msgs';     // legacy — migration only
 const COACH_SESSIONS_STORE = 'wt-coach-sessions';
@@ -4389,7 +4390,13 @@ function renderCoachChat(container, key) {
     fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-      body: JSON.stringify({ model: 'llama-3.1-8b-instant', messages: groqMessages, max_tokens: 512, temperature: 0.7 }),
+      // llama-3.1-8b-instant was shut down by Groq on 2026-08-16; gpt-oss-20b is their named replacement.
+      // It's a reasoning model: reasoning tokens count toward the completion limit, so keep effort
+      // low and leave headroom, and don't return the reasoning — only the answer is shown.
+      body: JSON.stringify({
+        model: COACH_MODEL, messages: groqMessages, temperature: 0.7,
+        max_completion_tokens: 1536, reasoning_effort: 'low', include_reasoning: false,
+      }),
     })
     .then(r => r.json())
     .then(data => {
