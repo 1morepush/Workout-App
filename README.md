@@ -53,6 +53,27 @@ Five tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
 
 ---
 
+## Where Your Data Lives
+
+**On your phone.** Everything — workouts, sets, History, meals, the Intake log, weigh-ins, body stats, Coach chats, your Groq key and your GitHub token — is stored in the browser's `localStorage` on your device. There is no account and no server of our own. No analytics or trackers.
+
+**It leaves your phone only when you use a feature that needs it:**
+
+| When you… | What's sent | To |
+|---|---|---|
+| Send a Coach message | Your message and the conversation, plus your plan, recent sessions, today's targets and food, and body stats (weight, body fat, goal) | Groq |
+| Scan a label | The photo, shrunk to 1600px | Groq |
+| Describe a meal | What you typed | Groq |
+| Turn on GitHub backup | Everything the app syncs — workouts, History, intake, weigh-ins, body stats, Coach chats. **Not** your Groq key or GitHub token | Your own GitHub Gist |
+
+**Groq** — per [Groq's data policy](https://console.groq.com/docs/your-data) (checked September 2026): by default it doesn't keep your prompts or replies; it may log them for up to 30 days to troubleshoot errors or investigate abuse, and you can switch that off with **Zero Data Retention** in Groq's Data Controls. It always keeps usage metadata, which doesn't include content.
+
+**GitHub Gist** — the backup is a *secret* gist. On GitHub that means unlisted, not private: it doesn't appear on your profile or in search, but anyone who has its URL can read it. Don't share the link.
+
+**Also contacted:** Google Fonts, for the app's typefaces (it sees the request, none of your data), and GitHub Pages, which serves the app itself.
+
+---
+
 ## Quick Start
 
 **Option A — Hosted (no setup needed):**

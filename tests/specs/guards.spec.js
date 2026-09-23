@@ -24,6 +24,7 @@ const DEVICE_ONLY = {
   'wt-gh-last-sync':  'this phone’s last sync time',
   'wt-seen-version':  'whether this phone has seen the newest release notes',
   'wt-coach-msgs':    'legacy single-chat store, read once for migration',
+  'wt-datefix-dismissed': 'this phone chose to leave pre-v1.3 misdated sessions alone',
 };
 
 test('every storage key is either backed up or deliberately device-only', async ({ app, page }) => {
@@ -33,7 +34,8 @@ test('every storage key is either backed up or deliberately device-only', async 
   const src = source();
   const used = [...new Set([
     ...src.matchAll(/(?:lsGet|lsSet|getItem|setItem|removeItem)\(\s*['"](wt-[a-z0-9-]+)['"]/g),
-    ...src.matchAll(/const\s+\w*(?:STORE|KEY)\w*\s*=\s*['"](wt-[a-z0-9-]+)['"]/g),
+    // any constant holding a key — not just ones named *STORE/*KEY (DATEFIX_DISMISSED slipped past that)
+    ...src.matchAll(/const\s+\w+\s*=\s*['"](wt-[a-z0-9-]+)['"]/g),
   ].map(m => m[1]))];
   expect(used.length, 'key detection found almost nothing — the pattern is broken').toBeGreaterThan(10);
   const unaccounted = used.filter(k => !synced.includes(k) && !(k in DEVICE_ONLY));
