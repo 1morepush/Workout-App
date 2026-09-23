@@ -21,6 +21,7 @@ Five tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
 ### 🥗 Meal
 - **Daily meal plan** — pre-defined meals with items, kcal, and protein per meal
 - **Toggle views** — switch between Today's plan and a full macro summary
+- **Gap to your target** — once your targets come from your body, shows how the menu compares and how to close the gap
 
 ### 🍽️ Intake
 - **Scan a nutrition label** — snap a photo; the app reads the per-serving values and you set how many servings you had
@@ -31,6 +32,8 @@ Five tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
 - **Eat less of / avoid** — flags foods carrying 20%+ of a daily limit in one serving (the FDA's threshold for "high") and anything with trans fat
 - **Targets from your body** — enter your weight (and body fat % if you know it) and calories and macros are set to reach a body-fat goal (15% by default): goal weight, a steady deficit, protein at 1 g per lb of goal weight. Each target says how it was worked out
 - **Weigh-ins** — log your weight any day; the card shows your trend and roughly how many weeks to goal
+- **Calibration** — after two weeks of weigh-ins, checks your calorie target against how fast you're really losing (using logged meals when you've logged most days) and suggests a better number; tap **Use** to take it
+- **Tape-measure body fat** — no body-fat number? Estimate it from waist and neck (and hips for women), US Navy method
 - **Targets** — before a weight is entered they come from your meal plan; any number you set yourself wins
 - **Back-log** — step to previous days to add something you forgot
 
@@ -44,6 +47,7 @@ Five tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
 - **AI personal trainer** — powered by Groq API (free tier)
 - **Explains your plan, doesn't override it** — it's given each lift's plan target and reason, and explains those rather than inventing its own numbers
 - **Knows your workout** — system prompt includes your current plan, so the coach can give contextual advice
+- **Knows your food** — your body goal, today's targets and what you've eaten (label vs. estimate), so it can say what to eat next
 - **Persistent chat** — conversation history saved in `localStorage`
 - **Setup flow** — paste your Groq API key once; stored locally, never sent anywhere except Groq
 

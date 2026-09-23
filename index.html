@@ -840,6 +840,15 @@ body::after {
 .meal-item-name { font-size: 13px; color: var(--text); flex: 1; }
 .meal-item-qty { font-family: 'DM Mono', monospace; font-size: 9.5px; color: var(--text-sub); white-space: nowrap; flex-shrink: 0; }
 
+.meal-gap {
+  background: color-mix(in srgb, var(--gold) 5%, var(--bg-card)); border: 1px solid color-mix(in srgb, var(--gold) 22%, transparent);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 7px; flex-shrink: 0;
+}
+.meal-gap-hd { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+.meal-gap-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; color: var(--text); }
+.meal-gap-val { font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--text-sub); text-align: right; font-variant-numeric: tabular-nums; }
+.meal-gap-tip { font-size: 12px; color: var(--text-sub); line-height: 1.5; }
+
 /* ── GROCERY LIST ────────────────────────────────── */
 .grocery-section { margin-bottom: 16px; }
 .grocery-sec-label {
@@ -1092,6 +1101,20 @@ body::after {
 .in-tgt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .in-tgt-head .ef-inp { width: 96px; text-align: right; flex-shrink: 0; }
 .in-tgt-why { font-size: 11.5px; color: var(--text-sub); line-height: 1.45; }
+
+.in-calib { font-size: 12px; line-height: 1.5; color: var(--text-sub); border-radius: 8px; padding: 9px 11px; margin-top: 6px; }
+.in-calib.is-waiting { background: var(--bg-inner); border: 1px dashed var(--border-md); }
+.in-calib.is-ok { color: var(--in-good); background: color-mix(in srgb, var(--in-good) 7%, transparent); border: 1px solid color-mix(in srgb, var(--in-good) 25%, transparent); }
+.in-calib.is-suggest { background: color-mix(in srgb, var(--in-acc) 7%, transparent); border: 1px solid color-mix(in srgb, var(--in-acc) 35%, transparent); display: flex; flex-direction: column; gap: 6px; }
+.in-calib-head { font-size: 13.5px; font-weight: 600; color: var(--text); }
+.in-calib-use {
+  align-self: flex-start; background: var(--in-acc); color: #0D0C0A; border: none; border-radius: 7px;
+  padding: 8px 14px; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.in-tape { margin-top: 12px; padding: 11px 12px; border: 1px solid var(--border-md); border-radius: 10px; display: flex; flex-direction: column; gap: 8px; background: #12100E; }
+.in-tape-head { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-sub); }
+.in-tape-est { font-size: 12.5px; color: var(--text); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; line-height: 1.4; }
+.in-tape-est .in-seg-btn { flex: 0 0 auto; padding: 7px 12px; }
 
 /* intake sheet */
 .in-sheet { max-height: 88vh; overflow-y: auto; padding-bottom: calc(14px + var(--safe-b)); }
@@ -1632,6 +1655,17 @@ const EXERCISE_MUSCLES = {
 // Versions before 1.2 were assigned after the fact, from git history. From 1.2 on
 // they are the numbers the app actually showed.
 const RELEASES = [
+  { version: '1.7', name: 'Dialed In', date: '2026-09-23',
+    headline: 'Your calorie target now checks itself against your weigh-ins',
+    changes: [
+      'After two weeks of weigh-ins, the app compares how fast you’re actually losing with the plan and suggests a better calorie target. Tap Use to take it — it never changes on its own.',
+      'If you log meals on most days it uses what you really ate; otherwise it assumes you hit your target, and says so.',
+      'No body fat number? Estimate it with a tape measure: waist and neck, plus hips for women.',
+      'The Meal tab shows how its menu compares with your target, and how to close the gap.',
+      'The Coach now knows your body goal, today’s targets and what you’ve eaten — and which foods were read off a label versus estimated.',
+      'The Meal tab’s totals are worked out from the menu instead of typed in, so they can’t drift.',
+      'The weigh-in trend says “1 lb”, not “1 lbs”.',
+    ] },
   { version: '1.6', name: 'Weigh-In', date: '2026-09-23',
     headline: 'Your calories and protein now come from your body',
     changes: [
@@ -2716,6 +2750,39 @@ document.getElementById('calcOverlay').addEventListener('click', e => {
 //  MEAL VIEW
 // ═══════════════════════════════════════════════════════════════
 
+// How this fixed menu compares with the targets on the Intake tab. The menu isn't
+// rescaled — "4.8 eggs" helps nobody — the gap is shown with a plain way to close it.
+function mealGapCard() {
+  const t = intakeTargets();
+  const plan = { kcal: MEAL_PLAN.reduce((a, m) => a + m.kcal, 0), protein: MEAL_PLAN.reduce((a, m) => a + m.protein, 0) };
+  const dk = t.kcal - plan.kcal, dp = t.protein - plan.protein;
+  if (Math.abs(dk) < plan.kcal * 0.05 && Math.abs(dp) < 10) return null;
+  const own = lsGet(INTAKE_TARGETS_STORE) || {};
+  const src = (own.kcal || own.protein) ? 'your own targets' : bodyPlan() && bodyPlan().targets ? 'your body on the Intake tab' : null;
+  if (!src) return null;
+  const card = document.createElement('div'); card.className = 'meal-gap';
+  const hd = document.createElement('div'); hd.className = 'meal-gap-hd'; hd.textContent = 'Your target vs this plan';
+  card.appendChild(hd);
+  [['Calories', t.kcal, plan.kcal, dk, ''], ['Protein', t.protein, plan.protein, dp, 'g']].forEach(([lbl, tv, pv, d, u]) => {
+    const row = document.createElement('div'); row.className = 'meal-gap-row';
+    const l = document.createElement('span'); l.textContent = lbl;
+    const v = document.createElement('span'); v.className = 'meal-gap-val';
+    v.textContent = tv.toLocaleString() + u + ' target · plan ' + pv.toLocaleString() + u + ' · ' +
+      (Math.abs(d) < (u ? 5 : 25) ? 'about right' : Math.abs(d).toLocaleString() + u + (d > 0 ? ' short' : ' over'));
+    row.appendChild(l); row.appendChild(v); card.appendChild(row);
+  });
+  const tip = document.createElement('div'); tip.className = 'meal-gap-tip';
+  const pct = Math.round(Math.abs(dk) / plan.kcal * 100);
+  tip.textContent = (Math.abs(dk) < plan.kcal * 0.05)
+    ? 'Calories line up. Protein is ' + Math.abs(dp) + 'g ' + (dp > 0 ? 'short — add a shake or a Greek yogurt.' : 'over — fine to eat as planned.')
+    : dk > 0
+      ? 'Eat about ' + dk.toLocaleString() + ' kcal more a day: roughly ' + pct + '% bigger portions, or an extra snack.'
+      : 'Eat about ' + (-dk).toLocaleString() + ' kcal less a day: roughly ' + pct + '% smaller portions, starting with the rice, oats and oil.';
+  tip.textContent += ' Targets come from ' + src + '.';
+  card.appendChild(tip);
+  return card;
+}
+
 function renderMeal() {
   const container = document.getElementById('mealView');
   container.textContent = '';
@@ -2724,7 +2791,9 @@ function renderMeal() {
   const ttl = document.createElement('div'); ttl.className = 'meal-title';
   ttl.textContent = mealSubView === 'plan' ? 'MEAL PLAN' : 'GROCERIES';
   const sub = document.createElement('div'); sub.className = 'meal-sub';
-  sub.textContent = mealSubView === 'plan' ? '~1,900 KCAL \xb7 180G PROTEIN \xb7 DAILY' : 'WEEKLY SHOPPING LIST';
+  const planSum = k => MEAL_PLAN.reduce((a, m) => a + (m[k] || 0), 0);
+  sub.textContent = mealSubView === 'plan'
+    ? '~' + planSum('kcal').toLocaleString() + ' KCAL \xb7 ' + planSum('protein') + 'G PROTEIN \xb7 DAILY' : 'WEEKLY SHOPPING LIST';
   hdr.appendChild(ttl); hdr.appendChild(sub);
   container.appendChild(hdr);
 
@@ -2740,7 +2809,9 @@ function renderMeal() {
 
   if (mealSubView === 'plan') {
     const chips = document.createElement('div'); chips.className = 'macro-chips';
-    [{v:'1,905',l:'Calories'},{v:'181g',l:'Protein'},{v:'154g',l:'Carbs'},{v:'48g',l:'Fat'}].forEach(({v,l}) => {
+    // From MEAL_PLAN, not typed in — so the chips can't drift from the menu.
+    [{v:planSum('kcal').toLocaleString(),l:'Calories'},{v:planSum('protein')+'g',l:'Protein'},
+     {v:planSum('carbs')+'g',l:'Carbs'},{v:planSum('fat')+'g',l:'Fat'}].forEach(({v,l}) => {
       const chip = document.createElement('div'); chip.className = 'macro-chip';
       const val  = document.createElement('span'); val.className = 'macro-val'; val.textContent = v;
       const lbl  = document.createElement('span'); lbl.className = 'macro-lbl'; lbl.textContent = l;
@@ -2748,6 +2819,8 @@ function renderMeal() {
       chips.appendChild(chip);
     });
     container.appendChild(chips);
+    const gap = mealGapCard();
+    if (gap) container.appendChild(gap);
 
     MEAL_PLAN.forEach(meal => {
       const card = document.createElement('div'); card.className = 'meal-card';
@@ -2873,7 +2946,24 @@ const PACE = {
   steady: { pct: 0.005,  label: 'Steady', desc: '0.5% a week — keeps muscle well' },
   faster: { pct: 0.0075, label: 'Faster', desc: '0.75% a week — harder to hold strength' },
 };
-const BODY_DEFAULTS = { goalBf: 15, activity: 'moderate', pace: 'steady', bodyFat: null, heightIn: null, age: null, sex: null };
+const BODY_DEFAULTS = { goalBf: 15, activity: 'moderate', pace: 'steady', bodyFat: null, heightIn: null, age: null, sex: null,
+                        waistIn: null, neckIn: null, hipIn: null };
+const CALIB_STORE = 'wt-calibration';   // { factor, date, why } — set only when the user taps Use
+
+// US Navy tape-measure estimate (inches). Men: waist at the navel. Women: waist at
+// its narrowest, hips at their widest. A rough estimate, not a scan.
+function navyBodyFat({ sex, heightIn, waistIn, neckIn, hipIn }) {
+  if (!(heightIn > 0 && waistIn > 0 && neckIn > 0)) return null;
+  let bf;
+  if (sex === 'm') {
+    if (waistIn <= neckIn) return null;
+    bf = 86.010 * Math.log10(waistIn - neckIn) - 70.041 * Math.log10(heightIn) + 36.76;
+  } else if (sex === 'f') {
+    if (!(hipIn > 0) || waistIn + hipIn <= neckIn) return null;
+    bf = 163.205 * Math.log10(waistIn + hipIn - neckIn) - 97.684 * Math.log10(heightIn) - 78.387;
+  } else return null;
+  return bf >= 3 && bf <= 60 ? Math.round(bf * 10) / 10 : null;
+}
 
 function bodyProfile() { return Object.assign({}, BODY_DEFAULTS, lsGet(BODY_STORE) || {}); }
 function weighIns()    { return lsGet(WEIGHINS_STORE) || {}; }
@@ -2886,7 +2976,7 @@ function fmtInt(v) { return Math.round(v).toLocaleString(); }
 
 // Pure: profile + current weight → { targets, why, … }, or { missing } when there
 // is not enough to estimate a daily burn. Tests call this directly.
-function bodyPlanFor(p, lbs) {
+function bodyPlanFor(p, lbs, calib) {
   p = Object.assign({}, BODY_DEFAULTS, p);
   const act  = ACTIVITY[p.activity] || ACTIVITY.moderate;
   const pace = PACE[p.pace] || PACE.steady;
@@ -2906,7 +2996,11 @@ function bodyPlanFor(p, lbs) {
   } else {
     return { missing: true };
   }
-  const tdee = bmr * act.f;
+  const formulaTdee = bmr * act.f;
+  // A calibration from real weigh-ins scales the formula; kept as a ratio so it
+  // carries over as weight and activity change.
+  const factor = calib && calib.factor > 0 ? calib.factor : 1;
+  const tdee = formulaTdee * factor;
 
   // Goal weight: keep the lean mass, lose fat until it is goalBf% of the total.
   let goalLbs = null, toLose = null, phase = 'cut';
@@ -2942,8 +3036,11 @@ function bodyPlanFor(p, lbs) {
     satFat: Math.round(kcal * 0.10 / 9),
   };
 
-  const maint = 'Maintenance ≈ ' + fmtInt(tdee) + ': resting burn ' + fmtInt(bmr) + ' (' + method + ') × ' +
-                act.f + ' for ' + act.desc + '.';
+  const formulaTxt = 'resting burn ' + fmtInt(bmr) + ' (' + method + ') × ' + act.f + ' for ' + act.desc;
+  const maint = factor === 1
+    ? 'Maintenance ≈ ' + fmtInt(tdee) + ': ' + formulaTxt + '.'
+    : 'Maintenance ≈ ' + fmtInt(tdee) + ', calibrated from your weigh-ins on ' + fmtShortDate(calib.date) +
+      ' (the formula said ' + fmtInt(formulaTdee) + ': ' + formulaTxt + ').';
   const planKcal = MEAL_PLAN.reduce((a, m) => a + m.kcal, 0);
   const why = {
     kcal: phase === 'hold'
@@ -2963,13 +3060,90 @@ function bodyPlanFor(p, lbs) {
   };
   if (Math.abs(kcal - planKcal) / planKcal > 0.10) why.kcal += ' Your meal plan totals ' + fmtInt(planKcal) + '.';
 
-  return { lbs, bf, goalBf, lean, goalLbs, toLose, phase, weeks, lossPerWk, bmr, tdee, method, act, pace, capped, targets, why };
+  return { lbs, bf, goalBf, lean, goalLbs, toLose, phase, weeks, lossPerWk, bmr, formulaTdee, factor, tdee, method, act, pace, capped, targets, why };
 }
 
 function bodyPlan() {
   const wi = latestWeighIn();
   if (!wi) return null;
-  return Object.assign(bodyPlanFor(bodyProfile(), wi.lbs), { date: wi.date, lbs: wi.lbs });
+  return Object.assign(bodyPlanFor(bodyProfile(), wi.lbs, lsGet(CALIB_STORE)), { date: wi.date, lbs: wi.lbs });
+}
+
+function fmtShortDate(iso) {
+  const [, m, d] = String(iso).split('-').map(Number);
+  return MONTHS_S[m - 1].charAt(0) + MONTHS_S[m - 1].slice(1).toLowerCase() + ' ' + d;
+}
+function dayDiff(a, b) {   // whole days from ISO date a to b, by calendar — no DST drift
+  const [y1, m1, d1] = a.split('-').map(Number), [y2, m2, d2] = b.split('-').map(Number);
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86400000);
+}
+
+// ─── CALIBRATION: check the formula against real weigh-ins ───
+// What you ate minus what you lost is what you burned:
+//   burn ≈ average intake + (lb lost per week × 3,500 ÷ 7)
+// The loss rate is a least-squares line through the last 28 days of weigh-ins, so
+// one salty-dinner reading can't swing it. Intake is the logged average when meals
+// were logged on most days; otherwise it assumes you ate about your target, and
+// says so. The result is only ever a suggestion — the user taps Use to apply it.
+const CALIB_WINDOW_DAYS = 28, CALIB_MIN_SPAN = 14, CALIB_MIN_WEIGHINS = 4;
+const CALIB_LOGGED_SHARE = 0.7, CALIB_LOGGED_MIN_KCAL = 800, CALIB_MIN_CHANGE = 75;
+const CALIB_CLAMP = [0.75, 1.25];
+
+// Pure: { weighIns, intake, plan, targetKcal, calib, today } → status object. Tests call this.
+function calibrationFor({ weighIns, intake, plan, targetKcal, calib, today }) {
+  if (!plan || !plan.targets) return { status: 'none' };
+  // After a calibration, only weigh-ins from that day on count. Before it the user
+  // was eating the old target; mixing the two would make each Use ratchet the
+  // number further, because "assumed intake" would already be the new target.
+  const since = calib && calib.date && dayDiff(calib.date, today) < CALIB_WINDOW_DAYS ? calib.date : null;
+  const pts = Object.keys(weighIns).filter(d => dayDiff(d, today) >= 0 && dayDiff(d, today) < CALIB_WINDOW_DAYS &&
+                                                (!since || dayDiff(since, d) >= 0)).sort()
+    .map(d => ({ d, x: 0, y: weighIns[d] }));
+  const span = pts.length ? dayDiff(pts[0].d, pts[pts.length - 1].d) : 0;
+  if (pts.length < CALIB_MIN_WEIGHINS || span < CALIB_MIN_SPAN) {
+    return { status: 'waiting', weighInsNeeded: Math.max(0, CALIB_MIN_WEIGHINS - pts.length),
+             daysNeeded: Math.max(0, CALIB_MIN_SPAN - span), count: pts.length, span, since };
+  }
+  pts.forEach(p => { p.x = dayDiff(pts[0].d, p.d); });
+  const n = pts.length, mx = pts.reduce((a, p) => a + p.x, 0) / n, my = pts.reduce((a, p) => a + p.y, 0) / n;
+  const slope = pts.reduce((a, p) => a + (p.x - mx) * (p.y - my), 0) / pts.reduce((a, p) => a + (p.x - mx) ** 2, 0);
+  const lossPerWk = -slope * 7;
+
+  const days = span + 1;
+  let logged = 0, loggedKcal = 0;
+  for (let i = 0; i < days; i++) {
+    const dt = new Date(pts[0].d + 'T12:00:00'); dt.setDate(dt.getDate() + i);
+    const k = (intake[isoLocal(dt)] || []).reduce((a, e) => a + eaten(e).kcal, 0);
+    if (k >= CALIB_LOGGED_MIN_KCAL) { logged++; loggedKcal += k; }
+  }
+  const basis = logged >= CALIB_LOGGED_SHARE * days ? 'logged' : 'assumed';
+  const ate = basis === 'logged' ? loggedKcal / logged : targetKcal;
+
+  const burn = ate + lossPerWk * KCAL_PER_LB / 7;
+  let factor = burn / plan.formulaTdee, clamped = false;
+  if (factor < CALIB_CLAMP[0] || factor > CALIB_CLAMP[1]) { factor = Math.min(CALIB_CLAMP[1], Math.max(CALIB_CLAMP[0], factor)); clamped = true; }
+  factor = Math.round(factor * 1000) / 1000;
+  const maintenance = plan.formulaTdee * factor;
+  const current = (calib && calib.factor) || 1;
+  const weeks = Math.round(days / 7);
+  const rate = Math.abs(Math.round(lossPerWk * 10) / 10);
+  const moved = lossPerWk >= 0.05 ? 'lost ' + rate + ' lb a week' : lossPerWk <= -0.05 ? 'gained ' + rate + ' lb a week' : 'held steady';
+  const ateTxt = basis === 'logged'
+    ? 'eating about ' + fmtInt(ate) + ' a day (logged on ' + logged + ' of ' + days + ' days)'
+    : 'eating about your ' + fmtInt(ate) + ' target (meals weren’t logged on most days, so that’s assumed)';
+  const why = 'Over the last ' + weeks + ' week' + (weeks === 1 ? '' : 's') + ' you ' + moved + ', ' + ateTxt +
+    '. That puts your burn at about ' + fmtInt(maintenance) + ' a day — ' +
+    (maintenance < plan.formulaTdee ? fmtInt(plan.formulaTdee - maintenance) + ' less' : fmtInt(maintenance - plan.formulaTdee) + ' more') +
+    ' than the formula’s ' + fmtInt(plan.formulaTdee) + '.' +
+    (clamped ? ' That’s far enough off that it was capped at ' + Math.round(CALIB_CLAMP[factor < 1 ? 0 : 1] * 100) + '% of the formula — check your weigh-ins and logging.' : '');
+  const base = { factor, maintenance, lossPerWk, ate, basis, logged, days, count: n, clamped, why };
+  if (Math.abs(factor - current) * plan.formulaTdee < CALIB_MIN_CHANGE) return Object.assign({ status: 'onTrack' }, base);
+  return Object.assign({ status: 'suggest' }, base);
+}
+
+function calibration() {
+  return calibrationFor({ weighIns: weighIns(), intake: intakeAll(), plan: bodyPlan(), targetKcal: intakeTargets().kcal,
+                          calib: lsGet(CALIB_STORE), today: isoLocal(new Date()) });
 }
 
 function mealPlanTargets() {
@@ -3183,10 +3357,41 @@ function bodyCard() {
   if (trend) txt.appendChild(mk('div', 'in-body-trend', trend));
   top.appendChild(txt); top.appendChild(btn); card.appendChild(top);
   if (!b.missing) {
+    card.appendChild(calibrationBox(b));
     const how = mk('button', 'in-link', 'How your targets are set'); how.dataset.act = 'targets';
     card.appendChild(how);
   }
   return card;
+}
+
+// Is the formula right for this person? Waiting, fits, or a suggested new number.
+function calibrationBox(b) {
+  const c = calibration(), calib = lsGet(CALIB_STORE), box = mk('div', 'in-calib');
+  if (c.status === 'waiting') {
+    box.classList.add('is-waiting');
+    const need = [];
+    if (c.weighInsNeeded) need.push(c.weighInsNeeded + ' more weigh-in' + (c.weighInsNeeded === 1 ? '' : 's'));
+    if (c.daysNeeded) need.push(c.daysNeeded + ' more day' + (c.daysNeeded === 1 ? '' : 's'));
+    box.textContent = (c.since
+      ? 'Calibrated ' + fmtShortDate(c.since) + ' from your weigh-ins. The app checks again after ' + need.join(' and ') + '.'
+      : 'These are formula estimates. After ' + need.join(' and ') + ', the app checks them against how fast you’re actually losing.');
+    return box;
+  }
+  if (c.status === 'onTrack') {
+    box.classList.add('is-ok');
+    box.textContent = '✓ Checked against ' + c.count + ' weigh-ins — your targets fit your real rate of change.' +
+      (calib ? ' Calibrated ' + fmtShortDate(calib.date) + '.' : '');
+    return box;
+  }
+  box.classList.add('is-suggest');
+  const next = bodyPlanFor(bodyProfile(), b.lbs, { factor: c.factor, date: isoLocal(new Date()) }).targets.kcal;
+  box.appendChild(mk('div', 'in-calib-head', 'Your weigh-ins suggest ' + fmtInt(next) + ' kcal a day, not ' + fmtInt(b.targets.kcal)));
+  box.appendChild(mk('div', 'in-calib-why', c.why));
+  const own = (lsGet(INTAKE_TARGETS_STORE) || {}).kcal;
+  if (own) box.appendChild(mk('div', 'in-calib-why', 'You set calories yourself (' + fmtInt(own) + '), and that stays. This changes the calculated number and the macros built on it.'));
+  const use = mk('button', 'in-calib-use', 'Use ' + fmtInt(next)); use.dataset.act = 'calib-use';
+  box.appendChild(use);
+  return box;
 }
 
 function weightTrend() {
@@ -3196,7 +3401,7 @@ function weightTrend() {
   const [y, m, d] = first.split('-').map(Number);
   const since = ' since ' + MONTHS_S[m - 1].charAt(0) + MONTHS_S[m - 1].slice(1).toLowerCase() + ' ' + d;
   if (diff === 0) return 'No change' + since + ' · ' + dates.length + ' weigh-ins';
-  return (diff < 0 ? 'Down ' : 'Up ') + Math.abs(diff) + ' lbs' + since + ' · ' + dates.length + ' weigh-ins';
+  return (diff < 0 ? 'Down ' : 'Up ') + Math.abs(diff) + (Math.abs(diff) === 1 ? ' lb' : ' lbs') + since + ' · ' + dates.length + ' weigh-ins';
 }
 
 function bar(val, target) {
@@ -3328,7 +3533,18 @@ document.getElementById('intakeView').addEventListener('click', e => {
     if (act === 'describe') { if (!coachGetKey()) return inNeedKey(); inOpen({ mode: 'describe', src: 'ai', date: intakeDateStr(), text: '' }); }
     if (act === 'manual')   inOpen({ mode: 'review', src: 'manual', date: intakeDateStr(), items: [blankItem()] });
     if (act === 'targets')  inOpen({ mode: 'targets' });
-    if (act === 'body')     inOpen({ mode: 'body', body: Object.assign({}, bodyProfile(), { lbs: (latestWeighIn() || {}).lbs || null }) });
+    if (act === 'calib-use') {
+      const c = calibration();   // recomputed, not trusted from the render
+      if (c.status === 'suggest') {
+        lsSet(CALIB_STORE, { factor: c.factor, date: isoLocal(new Date()), why: c.why });
+        scheduleSyncToGist();
+        renderIntake();
+      }
+    }
+    if (act === 'body') {
+      const prof = bodyProfile();
+      inOpen({ mode: 'body', tape: prof.waistIn != null, body: Object.assign({}, prof, { lbs: (latestWeighIn() || {}).lbs || null }) });
+    }
     return;
   }
   const r = e.target.closest('[data-recent]');
@@ -3603,6 +3819,7 @@ function renderIntakeSheet() {
     actions.appendChild(sheetBtn('btn-confirm', 'Save', 'tgt-save'));
     s.appendChild(actions);
     s.appendChild(sheetBtn('in-link', fromBody ? 'Reset all to your calculated targets' : 'Reset all to plan defaults', 'tgt-reset'));
+    if (lsGet(CALIB_STORE)) s.appendChild(sheetBtn('in-link', 'Clear weigh-in calibration — back to the formula', 'calib-clear'));
     return;
   }
 
@@ -3626,6 +3843,32 @@ function renderIntakeSheet() {
     field('Height (ft)', 'heightFt', ft, 'optional', 'numeric');
     field('Height (in)', 'heightInch', inch, 'optional', 'numeric');
     s.appendChild(grid);
+
+    // No body-fat number? Estimate it from a tape measure (US Navy method).
+    if (!d.tape) {
+      s.appendChild(sheetBtn('in-link', 'No body fat number? Estimate it with a tape measure', 'tape-open'));
+    } else {
+      const tape = mk('div', 'in-tape');
+      tape.appendChild(mk('div', 'in-tape-head', 'Tape measure (inches)'));
+      tape.appendChild(mk('div', 'in-seg-note', b.sex === 'f'
+        ? 'Waist at its narrowest, hips at their widest, neck just below the Adam’s apple. Relaxed, not sucked in.'
+        : 'Waist level with your navel, neck just below the Adam’s apple. Relaxed, not sucked in.'));
+      const tg = mk('div', 'in-tgt-grid');
+      const tf = (label, key) => {
+        const col = mk('label', 'ef-col');
+        col.appendChild(mk('span', 'ef-lbl', label));
+        const inp = mk('input', 'ef-inp mono'); inp.inputMode = 'decimal'; inp.dataset.bf = key;
+        inp.value = b[key] == null ? '' : String(b[key]); inp.placeholder = 'in';
+        col.appendChild(inp); tg.appendChild(col);
+      };
+      tf('Waist', 'waistIn'); tf('Neck', 'neckIn');
+      if (b.sex === 'f') tf('Hips', 'hipIn');
+      tape.appendChild(tg);
+      const est = mk('div', 'in-tape-est'); est.id = 'tapeEst';
+      tape.appendChild(est);
+      s.appendChild(tape);
+      fillTapeEstimate(est, b);
+    }
 
     const seg = (label, key, options, note) => {
       const wrap = mk('div', 'in-seg-wrap');
@@ -3716,7 +3959,18 @@ function reviewItem(it, i, removable) {
 
 // ─── body sheet: draft → validation → preview ───
 function bodyDraftProfile(b) {
-  return { bodyFat: b.bodyFat, goalBf: b.goalBf, age: b.age, heightIn: b.heightIn, sex: b.sex, activity: b.activity, pace: b.pace };
+  return { bodyFat: b.bodyFat, goalBf: b.goalBf, age: b.age, heightIn: b.heightIn, sex: b.sex, activity: b.activity, pace: b.pace,
+           waistIn: b.waistIn, neckIn: b.neckIn, hipIn: b.hipIn };
+}
+function fillTapeEstimate(el, b) {
+  el.textContent = '';
+  if (b.sex !== 'm' && b.sex !== 'f') { el.appendChild(mk('span', '', 'Pick your sex below — the formula differs.')); return; }
+  if (!(b.heightIn > 0)) { el.appendChild(mk('span', '', 'Add your height above.')); return; }
+  const bf = navyBodyFat(b);
+  if (bf == null) { el.appendChild(mk('span', '', b.sex === 'f' ? 'Enter waist, neck and hips.' : 'Enter waist and neck.')); return; }
+  el.appendChild(mk('span', '', 'Estimate: ' + bf + '% · a rough guide, likely a few points either way '));
+  const use = sheetBtn('in-seg-btn on', 'Use ' + bf + '%', 'tape-use');
+  el.appendChild(use);
 }
 function bodyValidate(b) {
   if (!(b.lbs >= 70 && b.lbs <= 700)) return 'Enter your weight in pounds (70–700).';
@@ -3766,6 +4020,8 @@ document.getElementById('intakeOverlay').addEventListener('input', e => {
     }
     const prev = document.getElementById('bodyPreview');
     if (prev) prev.textContent = bodyPreview(b);
+    const est = document.getElementById('tapeEst');
+    if (est) fillTapeEstimate(est, b);
     return;
   }
   if (!d || !d.items) return;
@@ -3850,6 +4106,12 @@ document.getElementById('intakeOverlay').addEventListener('click', e => {
     inClose(); renderIntake();
     return;
   }
+  if (act === 'tape-open') { d.tape = true; renderIntakeSheet(); return; }
+  if (act === 'tape-use') {
+    const bf = navyBodyFat(d.body);
+    if (bf != null) { d.body.bodyFat = bf; renderIntakeSheet(); }
+    return;
+  }
   if (act === 'seg') {
     d.body[b.dataset.key] = b.dataset.val;
     renderIntakeSheet();
@@ -3864,6 +4126,12 @@ document.getElementById('intakeOverlay').addEventListener('click', e => {
     lsSet(WEIGHINS_STORE, w);
     scheduleSyncToGist();
     inClose(); renderIntake();
+    return;
+  }
+  if (act === 'calib-clear') {
+    lsSet(CALIB_STORE, null);
+    scheduleSyncToGist();
+    renderIntakeSheet(); renderIntake();
     return;
   }
   if (act === 'tgt-reset') {
@@ -3927,7 +4195,7 @@ const GIST_TOKEN_KEY = 'wt-gh-token';
 const GIST_ID_KEY    = 'wt-gh-gist-id';
 const GIST_SYNC_KEY  = 'wt-gh-last-sync';
 const GIST_FILENAME  = 'workout-data.json';
-const SYNC_KEYS = ['wt-plans','wt-done','wt-nextid','wt-history','wt-grocery','wt-calc-week','wt-calc-starts','wt-coach-sessions','wt-intake','wt-intake-targets','wt-body','wt-weighins'];
+const SYNC_KEYS = ['wt-plans','wt-done','wt-nextid','wt-history','wt-grocery','wt-calc-week','wt-calc-starts','wt-coach-sessions','wt-intake','wt-intake-targets','wt-body','wt-weighins','wt-calibration'];
 
 let syncTimer = null;
 
@@ -4723,6 +4991,37 @@ function formatSessionDate(isoStr) {
   return DAYS_S[d.getDay()] + ', ' + MONTHS_S[d.getMonth()] + ' ' + d.getDate();
 }
 
+// What the Coach knows about food: the body goal, today's targets with their
+// reasons, and what's been logged — each item marked as read off a label or estimated.
+function coachNutritionContext() {
+  let t = `\nNUTRITION — IMPORTANT: The app sets these targets. Work from them and from what is left today; do not invent different targets. Foods marked (estimate) are guesses from a description, (label) were read from a nutrition label, (manual) the user typed in — say which when it matters.\n`;
+  const b = bodyPlan();
+  if (b && b.targets) {
+    t += `BODY: ${fmtLb(b.lbs)} (weighed ${b.date})` + (b.bf != null ? `, ${b.bf}% body fat, goal ${b.goalBf}%` : '') +
+         (b.goalLbs != null && b.phase === 'cut' ? ` — goal weight ~${fmtLb(Math.round(b.goalLbs))}, about ${b.weeks} weeks at ~${Math.round(b.lossPerWk * 10) / 10} lb/week` : '') +
+         (b.phase === 'hold' ? ' — at goal, holding' : '') + `\n`;
+    const trend = weightTrend(); if (trend) t += `WEIGH-INS: ${trend}\n`;
+    t += `WHY THESE CALORIES: ${b.why.kcal}\n`;
+  } else if (b && b.missing) {
+    t += `BODY: ${fmtLb(b.lbs)} — not enough to calculate targets (no body fat % or height/age/sex), so targets come from the meal plan.\n`;
+  } else {
+    t += `BODY: no weight entered; targets come from the fixed meal plan.\n`;
+  }
+  const tg = intakeTargets();
+  t += `DAILY TARGETS: ${fmtInt(tg.kcal)} kcal, protein ${tg.protein} g, carbs ${tg.carbs} g, fat ${tg.fat} g, fiber at least ${tg.fiber} g; limits: sodium ${fmtInt(tg.sodium)} mg, added sugar ${tg.addedSugar} g, saturated fat ${tg.satFat} g\n`;
+  const entries = intakeDay(TODAY_STR), tot = dayTotals(entries);
+  if (!entries.length) {
+    t += `TODAY'S INTAKE: nothing logged yet.\n`;
+  } else {
+    t += `TODAY'S INTAKE (logged so far): ${fmtInt(tot.kcal)} kcal, protein ${Math.round(tot.protein)} g, carbs ${Math.round(tot.carbs)} g, fat ${Math.round(tot.fat)} g, sodium ${fmtInt(tot.sodium)} mg`;
+    t += ` — remaining: ${fmtInt(Math.max(0, tg.kcal - tot.kcal))} kcal, ${Math.max(0, Math.round(tg.protein - tot.protein))} g protein\n`;
+    const src = { label: 'label', ai: 'estimate', manual: 'manual' };
+    entries.forEach(e => { const x = eaten(e);
+      t += `  • ${e.name} (${src[e.src] || 'manual'}): ${fmtInt(x.kcal)} kcal, ${Math.round(x.protein)} g protein\n`; });
+  }
+  return t;
+}
+
 function buildCoachSystemPrompt() {
   const day = workouts[TODAY_IDX];
   const todayC = completions[TODAY_STR] || {};
@@ -4771,6 +5070,7 @@ function buildCoachSystemPrompt() {
     });
   });
 
+  prompt += coachNutritionContext();
   return prompt;
 }
 
