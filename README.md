@@ -129,7 +129,7 @@ Your token is stored in `localStorage` and only ever sent to `api.github.com`.
 2. In the app → Coach tab → paste your key and tap **Activate Coach**
 3. The key is saved in `localStorage` — never leaves your device except when calling Groq
 
-The same key powers label scanning and meal estimates in the Intake tab. Models used: `openai/gpt-oss-20b` (Coach) and `qwen/qwen3.8-27b` (Intake, reads images). Groq retires models regularly — if a tab starts erroring, check [console.groq.com/docs/deprecations](https://console.groq.com/docs/deprecations) and update `COACH_MODEL` / `INTAKE_MODEL` in `index.html`.
+The same key powers label scanning and meal estimates in the Intake tab. Models used: `openai/gpt-oss-20b` (Coach) and `qwen/qwen3.8-27b` (Intake, reads images). Groq retires models regularly — if a tab starts erroring, check [console.groq.com/docs/deprecations](https://console.groq.com/docs/deprecations) and update `COACH_MODEL` / `INTAKE_MODEL` in `index.html`. A weekly check (GitHub Actions, Mondays) watches Groq's deprecation page and opens an issue here if either model is listed for shutdown.
 
 ---
 
@@ -177,5 +177,7 @@ Workout-App/
 ├── CLAUDE.md     # How to work on this repo with Claude Code: the core rule, versioning, known pitfalls
 ├── start.sh      # Launches a local HTTP server (needed for service worker)
 ├── tests/        # Browser tests (Playwright) — dev-only, the app has no dependencies
-└── .github/workflows/tests.yml   # Runs the tests on every pull request
+├── .github/workflows/tests.yml        # Runs the tests on every pull request
+├── .github/workflows/groq-models.yml  # Weekly: opens an issue if Groq is retiring a model the app uses
+└── .github/scripts/check-groq-models.js
 ```

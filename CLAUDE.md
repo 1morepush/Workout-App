@@ -64,7 +64,9 @@ Say in your reply which digit moved and why.
   and the Coach failed silently for weeks. Model IDs live in `COACH_MODEL` and
   `INTAKE_MODEL`; check https://console.groq.com/docs/deprecations before
   changing or relying on them. `gpt-oss` models spend reasoning tokens from the
-  completion budget — keep headroom.
+  completion budget — keep headroom. A weekly GitHub Action
+  (`.github/workflows/groq-models.yml`) checks both IDs against Groq's pages and
+  opens an issue if one is being retired; it never swaps the model itself.
 - **`--day-color` is rust on leg days.** Never use it for warnings; the Intake
   tab pins its own semantic colours for that reason.
 - **Model output is untrusted.** Render it with `textContent`, never
