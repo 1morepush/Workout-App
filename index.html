@@ -1064,6 +1064,35 @@ body::after {
   border: 1px dashed var(--border-md); border-radius: 12px; white-space: pre-line;
 }
 
+/* body card + body sheet */
+.in-body { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.in-body-top { display: flex; align-items: flex-start; gap: 10px; }
+.in-body-top .in-gear { margin: 0; flex-shrink: 0; }
+.in-body-main { flex: 1; min-width: 0; }
+.in-body-head { font-size: 15px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.in-body-bf { font-weight: 400; color: var(--in-acc); font-size: 13px; }
+.in-body-sub { font-size: 12.5px; color: var(--text-sub); line-height: 1.45; margin-top: 3px; }
+.in-body-trend { font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: .08em; color: var(--text-sub); margin-top: 5px; text-transform: uppercase; }
+.in-body .in-link { align-self: flex-start; padding-top: 6px; }
+.in-body-preview {
+  font-family: 'DM Mono', monospace; font-size: 11px; color: var(--in-acc); line-height: 1.5;
+  margin-top: 14px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--in-acc) 30%, transparent);
+  border-radius: 8px; background: color-mix(in srgb, var(--in-acc) 6%, transparent);
+}
+.in-seg-wrap { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.in-seg { display: flex; gap: 3px; background: var(--bg-inner); border: 1px solid var(--border); border-radius: 9px; padding: 3px; }
+.in-seg-btn {
+  flex: 1; font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+  padding: 8px 4px; border-radius: 6px; border: 1px solid transparent; background: none; color: var(--text-sub); cursor: pointer;
+}
+.in-seg-btn.on { background: var(--bg-card); color: var(--text); border-color: var(--border-md); }
+.in-seg-note { font-size: 11.5px; color: var(--text-sub); line-height: 1.45; }
+.in-tgt-list { display: flex; flex-direction: column; gap: 12px; }
+.in-tgt-row { display: flex; flex-direction: column; gap: 4px; }
+.in-tgt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.in-tgt-head .ef-inp { width: 96px; text-align: right; flex-shrink: 0; }
+.in-tgt-why { font-size: 11.5px; color: var(--text-sub); line-height: 1.45; }
+
 /* intake sheet */
 .in-sheet { max-height: 88vh; overflow-y: auto; padding-bottom: calc(14px + var(--safe-b)); }
 .in-sheet .sheet-title { color: var(--in-acc); }
@@ -1603,6 +1632,16 @@ const EXERCISE_MUSCLES = {
 // Versions before 1.2 were assigned after the fact, from git history. From 1.2 on
 // they are the numbers the app actually showed.
 const RELEASES = [
+  { version: '1.6', name: 'Weigh-In', date: '2026-09-23',
+    headline: 'Your calories and protein now come from your body',
+    changes: [
+      'Enter your weight on the Intake tab, and your body fat % if you know it. Your daily targets are then set to get you to 15% body fat, or whatever goal you pick.',
+      'The Intake tab shows your goal weight and roughly how many weeks it will take.',
+      'You choose the pace: slow, steady (0.5% of your weight a week) or faster. It never cuts below your resting burn or 75% of maintenance.',
+      'Every target says how it was worked out. Tap “How your targets are set” to see the reasons.',
+      'Weigh in whenever you like. The app shows how much you’ve lost or gained since your first weigh-in.',
+      'Any target you type in yourself still wins until you reset it.',
+    ] },
   { version: '1.5', name: 'Progressive Overload', date: '2026-09-23',
     headline: 'Every weight the app suggests now says why',
     changes: [
@@ -2814,13 +2853,142 @@ function mk(tag, cls, text) {
   return e;
 }
 
-function intakeDefaults() {
-  // Macros are summed from MEAL_PLAN so this tab and the Meal tab always agree.
-  // Limits are the FDA daily values printed on every US nutrition label.
-  const sum = k => MEAL_PLAN.reduce((a, m) => a + (m[k] || 0), 0);
-  return { kcal: sum('kcal'), protein: sum('protein'), carbs: sum('carbs'), fat: sum('fat'),
-           fiber: 28, sodium: 2300, addedSugar: 50, satFat: 20 };
+// ─── BODY: weight and body fat set the intake targets ──────────
+// Once a weight is entered, targets come from bodyPlanFor(); until then from
+// MEAL_PLAN. Like planFor(), every number is returned with the sentence that
+// explains it. These are standard estimates, not measurements, and the UI says
+// so — weigh-ins over a few weeks are how the user checks them.
+
+const BODY_STORE     = 'wt-body';
+const WEIGHINS_STORE = 'wt-weighins';
+const LB_PER_KG      = 2.20462;
+const KCAL_PER_LB    = 3500;   // the usual approximation for a pound of body fat
+const ACTIVITY = {
+  light:    { f: 1.375, label: 'Light',    desc: '1–3 workouts a week' },
+  moderate: { f: 1.55,  label: 'Moderate', desc: '3–5 workouts a week' },
+  high:     { f: 1.725, label: 'High',     desc: '6–7 hard sessions a week' },
+};
+const PACE = {
+  slow:   { pct: 0.0025, label: 'Slow',   desc: '0.25% of your weight a week — closest to a recomp' },
+  steady: { pct: 0.005,  label: 'Steady', desc: '0.5% a week — keeps muscle well' },
+  faster: { pct: 0.0075, label: 'Faster', desc: '0.75% a week — harder to hold strength' },
+};
+const BODY_DEFAULTS = { goalBf: 15, activity: 'moderate', pace: 'steady', bodyFat: null, heightIn: null, age: null, sex: null };
+
+function bodyProfile() { return Object.assign({}, BODY_DEFAULTS, lsGet(BODY_STORE) || {}); }
+function weighIns()    { return lsGet(WEIGHINS_STORE) || {}; }
+function latestWeighIn() {
+  const w = weighIns(), d = Object.keys(w).sort().pop();
+  return d ? { date: d, lbs: w[d] } : null;
 }
+function fmtLb(v) { return (Math.round(v * 10) / 10).toLocaleString() + ' lbs'; }
+function fmtInt(v) { return Math.round(v).toLocaleString(); }
+
+// Pure: profile + current weight → { targets, why, … }, or { missing } when there
+// is not enough to estimate a daily burn. Tests call this directly.
+function bodyPlanFor(p, lbs) {
+  p = Object.assign({}, BODY_DEFAULTS, p);
+  const act  = ACTIVITY[p.activity] || ACTIVITY.moderate;
+  const pace = PACE[p.pace] || PACE.steady;
+  const bf   = p.bodyFat > 0 && p.bodyFat < 70 ? p.bodyFat : null;
+  const goalBf = p.goalBf >= 5 && p.goalBf <= 40 ? p.goalBf : 15;
+
+  // Resting burn. Katch-McArdle works from lean mass, which suits people who
+  // lift; without a body-fat figure, Mifflin-St Jeor from height, age and sex.
+  let bmr, method, lean = null;
+  if (bf != null) {
+    lean = lbs * (1 - bf / 100);
+    bmr = 370 + 21.6 * (lean / LB_PER_KG);
+    method = 'Katch-McArdle, from ' + fmtLb(lean) + ' of lean mass';
+  } else if (p.heightIn > 0 && p.age > 0 && (p.sex === 'm' || p.sex === 'f')) {
+    bmr = 10 * (lbs / LB_PER_KG) + 6.25 * p.heightIn * 2.54 - 5 * p.age + (p.sex === 'm' ? 5 : -161);
+    method = 'Mifflin-St Jeor, from your weight, height, age and sex';
+  } else {
+    return { missing: true };
+  }
+  const tdee = bmr * act.f;
+
+  // Goal weight: keep the lean mass, lose fat until it is goalBf% of the total.
+  let goalLbs = null, toLose = null, phase = 'cut';
+  if (lean != null) {
+    goalLbs = lean / (1 - goalBf / 100);
+    toLose = Math.max(0, lbs - goalLbs);
+    if (bf <= goalBf + 0.5) phase = 'hold';
+  }
+
+  let kcal = tdee, capped = null;
+  if (phase === 'cut') {
+    kcal = tdee - pace.pct * lbs * KCAL_PER_LB / 7;
+    // Never below resting burn or 75% of maintenance — past that the cut costs muscle.
+    const floor = Math.max(bmr, tdee * 0.75);
+    if (kcal < floor) { kcal = floor; capped = floor === bmr ? 'your resting burn' : '75% of maintenance'; }
+  }
+  kcal = Math.round(kcal / 10) * 10;
+  const lossPerWk = phase === 'cut' ? (tdee - kcal) * 7 / KCAL_PER_LB : 0;
+  const weeks = toLose != null && lossPerWk > 0 ? Math.ceil(toLose / lossPerWk) : null;
+
+  // Protein: 1 g per lb of goal weight (or of current weight once there).
+  // Without a body-fat figure there is no goal weight, so 0.8 g per lb of body weight.
+  const protein = Math.round(goalLbs != null ? Math.min(goalLbs, lbs) : lbs * 0.8);
+  const fatFloor = 0.3 * lbs;
+  const fat = Math.round(Math.max(kcal * 0.25 / 9, fatFloor));
+  const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
+
+  const targets = {
+    kcal, protein, carbs, fat,
+    fiber: Math.round(kcal / 1000 * 14),
+    sodium: 2300,
+    addedSugar: Math.round(kcal * 0.10 / 4),
+    satFat: Math.round(kcal * 0.10 / 9),
+  };
+
+  const maint = 'Maintenance ≈ ' + fmtInt(tdee) + ': resting burn ' + fmtInt(bmr) + ' (' + method + ') × ' +
+                act.f + ' for ' + act.desc + '.';
+  const planKcal = MEAL_PLAN.reduce((a, m) => a + m.kcal, 0);
+  const why = {
+    kcal: phase === 'hold'
+      ? maint + ' You’re at or under ' + goalBf + '% body fat, so this holds you there.'
+      : maint + ' Minus ' + fmtInt(tdee - kcal) + ' a day to lose about ' + (Math.round(lossPerWk * 10) / 10) + ' lb a week' +
+        (capped ? ' — held at ' + capped + ' so the cut doesn’t cost muscle.' : ' (' + (pace.pct * 100) + '% of your weight).'),
+    protein: goalLbs == null
+      ? '0.8 g per lb of body weight. Add your body fat % to base it on your goal weight.'
+      : goalLbs < lbs ? '1 g per lb of your ' + goalBf + '% goal weight (~' + fmtLb(Math.round(goalLbs)) + ').'
+                      : '1 g per lb of body weight — you’re at your goal.',
+    fat: fat > Math.round(kcal * 0.25 / 9) ? '0.3 g per lb of body weight — the minimum, which is above 25% of calories.' : '25% of calories.',
+    carbs: 'The rest of your calories after protein and fat.',
+    fiber: '14 g per 1,000 calories (Dietary Guidelines).',
+    sodium: 'The Dietary Guidelines limit for adults.',
+    addedSugar: 'Under 10% of calories (Dietary Guidelines).',
+    satFat: 'Under 10% of calories (Dietary Guidelines).',
+  };
+  if (Math.abs(kcal - planKcal) / planKcal > 0.10) why.kcal += ' Your meal plan totals ' + fmtInt(planKcal) + '.';
+
+  return { lbs, bf, goalBf, lean, goalLbs, toLose, phase, weeks, lossPerWk, bmr, tdee, method, act, pace, capped, targets, why };
+}
+
+function bodyPlan() {
+  const wi = latestWeighIn();
+  if (!wi) return null;
+  return Object.assign(bodyPlanFor(bodyProfile(), wi.lbs), { date: wi.date, lbs: wi.lbs });
+}
+
+function mealPlanTargets() {
+  // Macros summed from MEAL_PLAN; limits are the FDA daily values on every US label.
+  const sum = k => MEAL_PLAN.reduce((a, m) => a + (m[k] || 0), 0);
+  const targets = { kcal: sum('kcal'), protein: sum('protein'), carbs: sum('carbs'), fat: sum('fat'),
+                    fiber: 28, sodium: 2300, addedSugar: 50, satFat: 20 };
+  const fromPlan = 'From your meal plan. Add your weight on the Intake tab to set it from your body.';
+  return { targets, why: { kcal: fromPlan, protein: fromPlan, carbs: fromPlan, fat: fromPlan,
+    fiber: 'FDA daily value.', sodium: 'FDA daily value.', addedSugar: 'FDA daily value.', satFat: 'FDA daily value.' } };
+}
+
+// Where today's defaults come from: the body when there's enough to go on, else the meal plan.
+function intakeBasis() {
+  const b = bodyPlan();
+  return b && b.targets ? b : mealPlanTargets();
+}
+function intakeDefaults() { return Object.assign({}, intakeBasis().targets); }
+// A number the user typed in Targets outranks either source until they reset it.
 function intakeTargets() { return Object.assign(intakeDefaults(), lsGet(INTAKE_TARGETS_STORE) || {}); }
 
 function intakeDate() {
@@ -2934,6 +3102,8 @@ function renderIntake() {
   hero.appendChild(bar(tot.kcal, targets.kcal));
   c.appendChild(hero);
 
+  c.appendChild(bodyCard());
+
   // add actions
   const add = mk('div', 'in-add');
   [['scan', '📷', 'Scan label', true], ['describe', '✎', 'Describe', true], ['manual', '＋', 'Manual', false]]
@@ -2984,6 +3154,49 @@ function renderIntake() {
     entries.slice().reverse().forEach(e => list.appendChild(entryRow(e, targets)));
     c.appendChild(list);
   }
+}
+
+// The body behind the targets: weight, where it's heading, and how it's trending.
+function bodyCard() {
+  const b = bodyPlan(), card = mk('div', 'in-body');
+  const top = mk('div', 'in-body-top');
+  const btn = mk('button', 'in-gear', b ? 'Update' : 'Add weight'); btn.dataset.act = 'body';
+  if (!b) {
+    const txt = mk('div', 'in-body-main');
+    txt.appendChild(mk('div', 'in-body-head', 'Set targets from your body'));
+    txt.appendChild(mk('div', 'in-body-sub', 'Enter your weight to aim calories and protein at ' + bodyProfile().goalBf + '% body fat.'));
+    top.appendChild(txt); top.appendChild(btn); card.appendChild(top);
+    return card;
+  }
+  const txt = mk('div', 'in-body-main');
+  const head = mk('div', 'in-body-head', fmtLb(b.lbs));
+  if (b.bf != null) head.appendChild(mk('span', 'in-body-bf', ' · ' + b.bf + '% → ' + b.goalBf + '% body fat'));
+  txt.appendChild(head);
+  let sub;
+  if (b.missing)             sub = 'Add your body fat % — or height, age and sex — to set targets from it. Using your meal plan until then.';
+  else if (b.phase === 'hold') sub = 'At your ' + b.goalBf + '% goal. Targets hold you here.';
+  else if (b.goalLbs != null) sub = 'About ' + b.weeks + ' week' + (b.weeks === 1 ? '' : 's') + ' to ~' + fmtLb(Math.round(b.goalLbs)) +
+                                   ', losing ~' + (Math.round(b.lossPerWk * 10) / 10) + ' lb a week.';
+  else                        sub = 'Losing ~' + (Math.round(b.lossPerWk * 10) / 10) + ' lb a week. Add your body fat % to see your ' + b.goalBf + '% goal weight.';
+  txt.appendChild(mk('div', 'in-body-sub', sub));
+  const trend = weightTrend();
+  if (trend) txt.appendChild(mk('div', 'in-body-trend', trend));
+  top.appendChild(txt); top.appendChild(btn); card.appendChild(top);
+  if (!b.missing) {
+    const how = mk('button', 'in-link', 'How your targets are set'); how.dataset.act = 'targets';
+    card.appendChild(how);
+  }
+  return card;
+}
+
+function weightTrend() {
+  const w = weighIns(), dates = Object.keys(w).sort();
+  if (dates.length < 2) return null;
+  const first = dates[0], last = dates[dates.length - 1], diff = Math.round((w[last] - w[first]) * 10) / 10;
+  const [y, m, d] = first.split('-').map(Number);
+  const since = ' since ' + MONTHS_S[m - 1].charAt(0) + MONTHS_S[m - 1].slice(1).toLowerCase() + ' ' + d;
+  if (diff === 0) return 'No change' + since + ' · ' + dates.length + ' weigh-ins';
+  return (diff < 0 ? 'Down ' : 'Up ') + Math.abs(diff) + ' lbs' + since + ' · ' + dates.length + ' weigh-ins';
 }
 
 function bar(val, target) {
@@ -3115,6 +3328,7 @@ document.getElementById('intakeView').addEventListener('click', e => {
     if (act === 'describe') { if (!coachGetKey()) return inNeedKey(); inOpen({ mode: 'describe', src: 'ai', date: intakeDateStr(), text: '' }); }
     if (act === 'manual')   inOpen({ mode: 'review', src: 'manual', date: intakeDateStr(), items: [blankItem()] });
     if (act === 'targets')  inOpen({ mode: 'targets' });
+    if (act === 'body')     inOpen({ mode: 'body', body: Object.assign({}, bodyProfile(), { lbs: (latestWeighIn() || {}).lbs || null }) });
     return;
   }
   const r = e.target.closest('[data-recent]');
@@ -3324,6 +3538,7 @@ function renderIntakeSheet() {
     error:    d.src === 'nokey' ? 'Groq key needed' : 'That didn’t work',
     review:   d.editId ? 'Edit food' : d.src === 'label' ? 'Check the label' : d.src === 'ai' ? 'Check the estimate' : 'Add food',
     targets:  'Daily targets',
+    body:     'Your body',
   };
   s.appendChild(mk('div', 'sheet-title', titles[d.mode]));
   const actions = mk('div', 'sheet-actions');
@@ -3364,23 +3579,77 @@ function renderIntakeSheet() {
   }
 
   if (d.mode === 'targets') {
-    const t = intakeTargets(), def = intakeDefaults();
-    s.appendChild(mk('div', 'in-sheet-note', 'Calories and macros start from your meal plan. Sodium, added sugar, saturated fat and fiber start at the FDA daily values.'));
-    const grid = mk('div', 'in-tgt-grid');
+    const t = intakeTargets(), basis = intakeBasis(), def = basis.targets;
+    const overrides = lsGet(INTAKE_TARGETS_STORE) || {};
+    const fromBody = !!bodyPlan() && !!bodyPlan().targets;
+    s.appendChild(mk('div', 'in-sheet-note', fromBody
+      ? 'Set from your weight and body fat goal — update those on the Intake tab. Change any number to override it; yours wins until you reset.'
+      : 'Calories and macros come from your meal plan until you add your weight. Limits start at the FDA daily values.'));
+    const list = mk('div', 'in-tgt-list');
     ['kcal', 'protein', 'carbs', 'fat', 'fiber', 'sodium', 'addedSugar', 'satFat'].forEach(k => {
       const n = NUTRIENTS.find(x => x.k === k);
-      const col = mk('label', 'ef-col');
-      col.appendChild(mk('span', 'ef-lbl', n.label + (n.unit === 'kcal' ? '' : ' (' + n.unit + ')') + (n.kind === 'limit' ? ' max' : n.kind === 'min' ? ' min' : '')));
+      const row = mk('label', 'in-tgt-row');
+      const head = mk('div', 'in-tgt-head');
+      head.appendChild(mk('span', 'ef-lbl', n.label + (n.unit === 'kcal' ? '' : ' (' + n.unit + ')') + (n.kind === 'limit' ? ' max' : n.kind === 'min' ? ' min' : '')));
       const inp = mk('input', 'ef-inp mono'); inp.inputMode = 'numeric'; inp.dataset.tgt = k;
       inp.value = String(t[k]); inp.placeholder = String(def[k]);
-      col.appendChild(inp); grid.appendChild(col);
+      head.appendChild(inp); row.appendChild(head);
+      row.appendChild(mk('div', 'in-tgt-why', k in overrides ? 'Your number. Calculated: ' + def[k] + ' — ' + basis.why[k] : basis.why[k]));
+      list.appendChild(row);
     });
-    s.appendChild(grid);
+    s.appendChild(list);
     actions.style.marginTop = '16px';
     actions.appendChild(sheetBtn('btn-cancel', 'Cancel', 'cancel'));
     actions.appendChild(sheetBtn('btn-confirm', 'Save', 'tgt-save'));
     s.appendChild(actions);
-    s.appendChild(sheetBtn('in-link', 'Reset all to plan defaults', 'tgt-reset'));
+    s.appendChild(sheetBtn('in-link', fromBody ? 'Reset all to your calculated targets' : 'Reset all to plan defaults', 'tgt-reset'));
+    return;
+  }
+
+  if (d.mode === 'body') {
+    const b = d.body;
+    s.appendChild(mk('div', 'in-sheet-note', 'Weight is all you need to start. Body fat % sets your goal weight — a smart scale, a DEXA scan or a tape-measure estimate all work.'));
+    const grid = mk('div', 'in-tgt-grid');
+    const field = (label, key, val, ph, mode) => {
+      const col = mk('label', 'ef-col');
+      col.appendChild(mk('span', 'ef-lbl', label));
+      const inp = mk('input', 'ef-inp mono'); inp.inputMode = mode || 'decimal'; inp.dataset.bf = key;
+      inp.value = val == null ? '' : String(val); inp.placeholder = ph;
+      col.appendChild(inp); grid.appendChild(col);
+      return inp;
+    };
+    field('Weight (lbs)', 'lbs', b.lbs, 'e.g. 185');
+    field('Body fat %', 'bodyFat', b.bodyFat, 'if you know it');
+    field('Goal body fat %', 'goalBf', b.goalBf, '15');
+    field('Age', 'age', b.age, 'optional', 'numeric');
+    const ft = b.heightIn ? Math.floor(b.heightIn / 12) : null, inch = b.heightIn ? Math.round(b.heightIn % 12) : null;
+    field('Height (ft)', 'heightFt', ft, 'optional', 'numeric');
+    field('Height (in)', 'heightInch', inch, 'optional', 'numeric');
+    s.appendChild(grid);
+
+    const seg = (label, key, options, note) => {
+      const wrap = mk('div', 'in-seg-wrap');
+      wrap.appendChild(mk('span', 'ef-lbl', label));
+      const row = mk('div', 'in-seg');
+      options.forEach(([val, text]) => {
+        const btn = sheetBtn('in-seg-btn' + (b[key] === val ? ' on' : ''), text, 'seg');
+        btn.dataset.key = key; btn.dataset.val = val; btn.setAttribute('aria-pressed', String(b[key] === val));
+        row.appendChild(btn);
+      });
+      wrap.appendChild(row);
+      if (note) wrap.appendChild(mk('div', 'in-seg-note', note));
+      s.appendChild(wrap);
+    };
+    seg('Sex', 'sex', [['m', 'Male'], ['f', 'Female']], b.bodyFat ? 'Not needed when you give body fat %.' : 'Used with height and age when there’s no body fat %.');
+    seg('Activity', 'activity', Object.entries(ACTIVITY).map(([k, a]) => [k, a.label]), (ACTIVITY[b.activity] || ACTIVITY.moderate).desc);
+    seg('Pace', 'pace', Object.entries(PACE).map(([k, p]) => [k, p.label]), (PACE[b.pace] || PACE.steady).desc);
+
+    const prev = mk('div', 'in-body-preview', bodyPreview(b)); prev.id = 'bodyPreview';
+    s.appendChild(prev);
+    if (d.error) s.appendChild(mk('div', 'in-err', d.error));
+    actions.appendChild(sheetBtn('btn-cancel', 'Cancel', 'cancel'));
+    actions.appendChild(sheetBtn('btn-confirm', 'Save', 'body-save'));
+    s.appendChild(actions);
     return;
   }
 
@@ -3445,6 +3714,28 @@ function reviewItem(it, i, removable) {
   return box;
 }
 
+// ─── body sheet: draft → validation → preview ───
+function bodyDraftProfile(b) {
+  return { bodyFat: b.bodyFat, goalBf: b.goalBf, age: b.age, heightIn: b.heightIn, sex: b.sex, activity: b.activity, pace: b.pace };
+}
+function bodyValidate(b) {
+  if (!(b.lbs >= 70 && b.lbs <= 700)) return 'Enter your weight in pounds (70–700).';
+  if (b.bodyFat != null && !(b.bodyFat >= 3 && b.bodyFat <= 70)) return 'Body fat should be between 3% and 70%.';
+  if (!(b.goalBf >= 5 && b.goalBf <= 40)) return 'Goal body fat should be between 5% and 40%.';
+  if (b.age != null && !(b.age >= 13 && b.age <= 100)) return 'Age should be between 13 and 100.';
+  if (b.heightIn != null && !(b.heightIn >= 48 && b.heightIn <= 96)) return 'Height should be between 4 ft and 8 ft.';
+  return null;
+}
+function bodyPreview(b) {
+  if (!(b.lbs >= 70 && b.lbs <= 700)) return 'Enter your weight to see your targets.';
+  const p = bodyPlanFor(bodyDraftProfile(b), b.lbs);
+  if (p.missing) return 'Add body fat % — or height, age and sex — to calculate your targets.';
+  let s = '→ ' + fmtInt(p.targets.kcal) + ' kcal · ' + p.targets.protein + ' g protein a day';
+  if (p.phase === 'hold') s += ' · at your goal';
+  else if (p.goalLbs != null) s += ' · about ' + p.weeks + ' weeks to ~' + fmtLb(Math.round(p.goalLbs));   // an estimate — no false decimals
+  return s;
+}
+
 function liveText(it) {
   const x = eaten(it);
   return 'You ate ' + fmtN(x.kcal, 'kcal') + ' kcal · P ' + Math.round(x.protein) + ' · C ' + Math.round(x.carbs) + ' · F ' + Math.round(x.fat);
@@ -3463,7 +3754,21 @@ function parseNum(v) {
 }
 
 document.getElementById('intakeOverlay').addEventListener('input', e => {
-  const t = e.target, d = inDraft; if (!d || !d.items) return;
+  const t = e.target, d = inDraft;
+  if (d && d.mode === 'body' && t.dataset.bf) {
+    const b = d.body, v = parseNum(t.value);
+    if (t.dataset.bf === 'heightFt' || t.dataset.bf === 'heightInch') {
+      const ft = parseNum(document.querySelector('#intakeSheet [data-bf="heightFt"]').value);
+      const inch = parseNum(document.querySelector('#intakeSheet [data-bf="heightInch"]').value);
+      b.heightIn = ft == null && inch == null ? null : (ft || 0) * 12 + (inch || 0);
+    } else {
+      b[t.dataset.bf] = v;
+    }
+    const prev = document.getElementById('bodyPreview');
+    if (prev) prev.textContent = bodyPreview(b);
+    return;
+  }
+  if (!d || !d.items) return;
   const i = +t.dataset.i, it = d.items[i]; if (!it) return;
   if (t.dataset.f === 'name')     it.name = t.value;
   if (t.dataset.f === 'serving')  it.serving = t.value;
@@ -3545,6 +3850,22 @@ document.getElementById('intakeOverlay').addEventListener('click', e => {
     inClose(); renderIntake();
     return;
   }
+  if (act === 'seg') {
+    d.body[b.dataset.key] = b.dataset.val;
+    renderIntakeSheet();
+    return;
+  }
+  if (act === 'body-save') {
+    const err = bodyValidate(d.body);
+    if (err) { d.error = err; renderIntakeSheet(); return; }
+    lsSet(BODY_STORE, bodyDraftProfile(d.body));
+    const w = weighIns();
+    w[isoLocal(new Date())] = Math.round(d.body.lbs * 10) / 10;   // one weigh-in per day; saving again corrects it
+    lsSet(WEIGHINS_STORE, w);
+    scheduleSyncToGist();
+    inClose(); renderIntake();
+    return;
+  }
   if (act === 'tgt-reset') {
     lsSet(INTAKE_TARGETS_STORE, {});
     scheduleSyncToGist();
@@ -3606,7 +3927,7 @@ const GIST_TOKEN_KEY = 'wt-gh-token';
 const GIST_ID_KEY    = 'wt-gh-gist-id';
 const GIST_SYNC_KEY  = 'wt-gh-last-sync';
 const GIST_FILENAME  = 'workout-data.json';
-const SYNC_KEYS = ['wt-plans','wt-done','wt-nextid','wt-history','wt-grocery','wt-calc-week','wt-calc-starts','wt-coach-sessions','wt-intake','wt-intake-targets'];
+const SYNC_KEYS = ['wt-plans','wt-done','wt-nextid','wt-history','wt-grocery','wt-calc-week','wt-calc-starts','wt-coach-sessions','wt-intake','wt-intake-targets','wt-body','wt-weighins'];
 
 let syncTimer = null;
 

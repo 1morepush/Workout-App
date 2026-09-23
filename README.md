@@ -29,7 +29,9 @@ Five tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
 - **Review before saving** — every AI result opens in an editable sheet, marked `LABEL` or `EST.`
 - **Too much today** — flags any limit you've passed (sodium, added sugar, saturated fat, calories, carbs, fat), worst first, with the foods that put you over
 - **Eat less of / avoid** — flags foods carrying 20%+ of a daily limit in one serving (the FDA's threshold for "high") and anything with trans fat
-- **Targets** — calories and macros default to your meal plan; limits default to FDA daily values; all editable
+- **Targets from your body** — enter your weight (and body fat % if you know it) and calories and macros are set to reach a body-fat goal (15% by default): goal weight, a steady deficit, protein at 1 g per lb of goal weight. Each target says how it was worked out
+- **Weigh-ins** — log your weight any day; the card shows your trend and roughly how many weeks to goal
+- **Targets** — before a weight is entered they come from your meal plan; any number you set yourself wins
 - **Back-log** — step to previous days to add something you forgot
 
 ### 📊 History
