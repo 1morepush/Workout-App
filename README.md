@@ -8,7 +8,7 @@ A mobile-first progressive web app for tracking gym workouts, meals, and trainin
 
 ## What It Does
 
-Four tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
+Five tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
 
 ### 🏋️ Train
 - **Day-based workout plan** — each day has its own exercises (built around a RECOMP 18-month plan)
@@ -20,6 +20,16 @@ Four tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
 ### 🥗 Meal
 - **Daily meal plan** — pre-defined meals with items, kcal, and protein per meal
 - **Toggle views** — switch between Today's plan and a full macro summary
+
+### 🍽️ Intake
+- **Scan a nutrition label** — snap a photo; the app reads the per-serving values and you set how many servings you had
+- **Describe a meal** — type "double cheeseburger and large fries" and it estimates each food
+- **Manual entry** — type the numbers yourself; works without an API key
+- **Review before saving** — every AI result opens in an editable sheet, marked `LABEL` or `EST.`
+- **Too much today** — flags any limit you've passed (sodium, added sugar, saturated fat, calories, carbs, fat), worst first, with the foods that put you over
+- **Eat less of / avoid** — flags foods carrying 20%+ of a daily limit in one serving (the FDA's threshold for "high") and anything with trans fat
+- **Targets** — calories and macros default to your meal plan; limits default to FDA daily values; all editable
+- **Back-log** — step to previous days to add something you forgot
 
 ### 📊 History
 - **Workout log** — scrollable history of every session stored locally
@@ -87,6 +97,8 @@ Your token is stored in `localStorage` and only ever sent to `api.github.com`.
 2. In the app → Coach tab → paste your key and tap **Activate Coach**
 3. The key is saved in `localStorage` — never leaves your device except when calling Groq
 
+The same key powers label scanning and meal estimates in the Intake tab. Models used: `openai/gpt-oss-20b` (Coach) and `qwen/qwen3.8-27b` (Intake, reads images). Groq retires models regularly — if a tab starts erroring, check [console.groq.com/docs/deprecations](https://console.groq.com/docs/deprecations) and update `COACH_MODEL` / `INTAKE_MODEL` in `index.html`.
+
 ---
 
 ## Customizing Workouts
@@ -105,7 +117,7 @@ The workout plan and meal plan are defined as data arrays inline in `index.html`
 | PWA | Service worker (cache-first), `apple-mobile-web-app-capable` meta tags |
 | Storage | `localStorage` for all data persistence |
 | Sync | GitHub Gist API (optional, requires personal access token) |
-| AI Coach | Groq API — `openai/v1/chat/completions` compatible (optional, free tier) |
+| AI | Groq API — `openai/v1/chat/completions` compatible (optional, free tier) |
 | Deployment | GitHub Pages (auto-deploys on push to `main`) |
 
 ---
