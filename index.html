@@ -877,6 +877,20 @@ body::after {
   text-transform: uppercase; cursor: pointer;
 }
 
+/* ── DATE FIX ────────────────────────────────────── */
+.datefix {
+  background: color-mix(in srgb, var(--gold) 6%, var(--bg-card)); border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+  border-radius: 12px; padding: 13px 14px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 8px;
+}
+.datefix-hd { font-size: 14.5px; font-weight: 600; color: var(--text); }
+.datefix-sub { font-size: 12px; color: var(--text-sub); line-height: 1.5; }
+.datefix-row { display: flex; flex-direction: column; gap: 1px; padding: 6px 0; border-top: 1px solid var(--border); }
+.datefix-move { font-family: 'DM Mono', monospace; font-size: 11.5px; color: var(--text); }
+.datefix-what { font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: .06em; color: var(--text-sub); }
+.datefix-btns { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+.datefix-btns .gist-save-btn { width: auto; padding: 9px 18px; margin: 0; }
+.datefix-btns .in-link { padding: 0; }
+
 /* ── WHAT'S NEW ──────────────────────────────────── */
 .ver-btn {
   font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .14em; color: var(--text-sub);
@@ -1115,6 +1129,12 @@ body::after {
 .in-tape-head { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-sub); }
 .in-tape-est { font-size: 12.5px; color: var(--text); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; line-height: 1.4; }
 .in-tape-est .in-seg-btn { flex: 0 0 auto; padding: 7px 12px; }
+
+.in-wi { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.in-wi-row { display: flex; align-items: center; gap: 8px; }
+.in-wi-date { font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--text-sub); letter-spacing: .04em; flex: 1; }
+.in-wi-row .ef-inp { width: 84px; text-align: right; flex-shrink: 0; }
+.in-wi-row.is-odd .ef-inp { border-color: color-mix(in srgb, var(--in-over) 55%, transparent); }
 
 /* intake sheet */
 .in-sheet { max-height: 88vh; overflow-y: auto; padding-bottom: calc(14px + var(--safe-b)); }
@@ -1655,6 +1675,12 @@ const EXERCISE_MUSCLES = {
 // Versions before 1.2 were assigned after the fact, from git history. From 1.2 on
 // they are the numbers the app actually showed.
 const RELEASES = [
+  { version: '1.8', name: 'Spot Check', date: '2026-09-23',
+    headline: 'Fix a wrong weigh-in, and put misfiled workouts back on the right day',
+    changes: [
+      'Past weigh-ins can be corrected or deleted in the body sheet. One that’s far out of line with those around it — a typo like 910 for 190 — is flagged “Looks off?”, since a bad reading would skew your calorie check for weeks.',
+      'Before v1.3, workouts logged late in the evening were saved under the next day. History now finds them and, once you say so, moves each back to the day you logged it — combining it with anything already there.',
+    ] },
   { version: '1.7', name: 'Dialed In', date: '2026-09-23',
     headline: 'Your calorie target now checks itself against your weigh-ins',
     changes: [
@@ -3394,6 +3420,19 @@ function calibrationBox(b) {
   return box;
 }
 
+// A weigh-in more than 4% away from the median of the others within two weeks of
+// it is almost certainly a typo (910 for 190) or a different scale.
+function weighInOutliers(w) {
+  const dates = Object.keys(w), odd = new Set();
+  dates.forEach(d => {
+    const near = dates.filter(o => o !== d && Math.abs(dayDiff(o, d)) <= 14).map(o => w[o]).sort((a, b) => a - b);
+    if (!near.length) return;
+    const med = near.length % 2 ? near[(near.length - 1) / 2] : (near[near.length / 2 - 1] + near[near.length / 2]) / 2;
+    if (Math.abs(w[d] - med) / med > 0.04) odd.add(d);
+  });
+  return odd;
+}
+
 function weightTrend() {
   const w = weighIns(), dates = Object.keys(w).sort();
   if (dates.length < 2) return null;
@@ -3543,7 +3582,8 @@ document.getElementById('intakeView').addEventListener('click', e => {
     }
     if (act === 'body') {
       const prof = bodyProfile();
-      inOpen({ mode: 'body', tape: prof.waistIn != null, body: Object.assign({}, prof, { lbs: (latestWeighIn() || {}).lbs || null }) });
+      inOpen({ mode: 'body', tape: prof.waistIn != null, weighins: Object.assign({}, weighIns()),
+               body: Object.assign({}, prof, { lbs: (weighIns()[isoLocal(new Date())] ?? (latestWeighIn() || {}).lbs) || null }) });
     }
     return;
   }
@@ -3887,6 +3927,29 @@ function renderIntakeSheet() {
     seg('Activity', 'activity', Object.entries(ACTIVITY).map(([k, a]) => [k, a.label]), (ACTIVITY[b.activity] || ACTIVITY.moderate).desc);
     seg('Pace', 'pace', Object.entries(PACE).map(([k, p]) => [k, p.label]), (PACE[b.pace] || PACE.steady).desc);
 
+    // Past weigh-ins: fix a typo or delete a bad reading. A wrong one would
+    // otherwise skew calibration for four weeks.
+    const today = isoLocal(new Date());
+    const past = Object.keys(d.weighins || {}).filter(k => k !== today).sort().reverse();
+    if (past.length) {
+      const wrap = mk('div', 'in-wi');
+      wrap.appendChild(mk('span', 'ef-lbl', 'Past weigh-ins'));
+      const odd = weighInOutliers(d.weighins);
+      past.forEach(ds => {
+        const row = mk('div', 'in-wi-row' + (odd.has(ds) ? ' is-odd' : ''));
+        const [y, m, dd] = ds.split('-').map(Number);
+        row.appendChild(mk('span', 'in-wi-date', ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(y, m - 1, dd).getDay()] + ' ' + fmtShortDate(ds)));
+        if (odd.has(ds)) row.appendChild(mk('span', 'in-flag hot', 'Looks off?'));
+        const inp = mk('input', 'ef-inp mono'); inp.inputMode = 'decimal'; inp.dataset.wi = ds;
+        inp.value = String(d.weighins[ds]); inp.setAttribute('aria-label', 'Weight on ' + ds);
+        row.appendChild(inp);
+        const del = sheetBtn('in-item-x', '✕', 'wi-del'); del.dataset.date = ds; del.setAttribute('aria-label', 'Delete weigh-in on ' + ds);
+        row.appendChild(del);
+        wrap.appendChild(row);
+      });
+      s.appendChild(wrap);
+    }
+
     const prev = mk('div', 'in-body-preview', bodyPreview(b)); prev.id = 'bodyPreview';
     s.appendChild(prev);
     if (d.error) s.appendChild(mk('div', 'in-err', d.error));
@@ -4009,6 +4072,10 @@ function parseNum(v) {
 
 document.getElementById('intakeOverlay').addEventListener('input', e => {
   const t = e.target, d = inDraft;
+  if (d && d.mode === 'body' && t.dataset.wi) {
+    d.weighins[t.dataset.wi] = parseNum(t.value);
+    return;
+  }
   if (d && d.mode === 'body' && t.dataset.bf) {
     const b = d.body, v = parseNum(t.value);
     if (t.dataset.bf === 'heightFt' || t.dataset.bf === 'heightInch') {
@@ -4117,11 +4184,20 @@ document.getElementById('intakeOverlay').addEventListener('click', e => {
     renderIntakeSheet();
     return;
   }
+  if (act === 'wi-del') {
+    delete d.weighins[b.dataset.date];
+    renderIntakeSheet();
+    return;
+  }
   if (act === 'body-save') {
-    const err = bodyValidate(d.body);
+    let err = bodyValidate(d.body);
+    const bad = Object.keys(d.weighins).filter(k => k !== isoLocal(new Date())).sort()
+      .find(k => !(d.weighins[k] >= 70 && d.weighins[k] <= 700));
+    if (!err && bad) err = 'The weigh-in on ' + fmtShortDate(bad) + ' should be between 70 and 700 lbs — fix it or delete it.';
     if (err) { d.error = err; renderIntakeSheet(); return; }
     lsSet(BODY_STORE, bodyDraftProfile(d.body));
-    const w = weighIns();
+    const w = {};
+    Object.keys(d.weighins).forEach(k => { w[k] = Math.round(d.weighins[k] * 10) / 10; });
     w[isoLocal(new Date())] = Math.round(d.body.lbs * 10) / 10;   // one weigh-in per day; saving again corrects it
     lsSet(WEIGHINS_STORE, w);
     scheduleSyncToGist();
@@ -4607,6 +4683,114 @@ function saveHistorySnapshot() {
   scheduleSyncToGist();
 }
 
+// ─── DATE FIX: sessions filed under the wrong day before v1.3 ───
+// Before v1.3, date keys came from toISOString() (UTC), so evening sessions west
+// of UTC were saved under the next day. Each History entry also recorded dayIdx —
+// the weekday being logged, taken from the local clock, which was never wrong.
+// So an entry whose date falls on a different weekday than its dayIdx was
+// misfiled, and dayIdx says where it belongs: the nearest date with that weekday.
+// Since v1.3 both come from viewDayDate(), so new entries can't mismatch.
+const DATEFIX_DISMISSED = 'wt-datefix-dismissed';
+
+function shiftIso(ds, days) {
+  const [y, m, d] = ds.split('-').map(Number);
+  return isoLocal(new Date(y, m - 1, d + days, 12));
+}
+function weekdayOf(ds) { const [y, m, d] = ds.split('-').map(Number); return new Date(y, m - 1, d, 12).getDay(); }
+
+// Pure: history → [{ from, to, entry, mergesInto }]
+function misdatedSessions(hist) {
+  const moves = [];
+  Object.keys(hist).sort().forEach(ds => {
+    const e = hist[ds];
+    if (!e || typeof e.dayIdx !== 'number' || e.dayIdx < 0 || e.dayIdx > 6) return;
+    const wd = weekdayOf(ds);
+    if (wd === e.dayIdx) return;
+    let delta = (e.dayIdx - wd + 7) % 7;
+    if (delta > 3) delta -= 7;          // nearest occurrence: evening bug → −1, morning (east of UTC) → +1
+    moves.push({ from: ds, to: shiftIso(ds, delta), entry: e });
+  });
+  const leaving = new Set(moves.map(m => m.from));
+  moves.forEach(m => { m.mergesInto = !!hist[m.to] && !leaving.has(m.to); });
+  return moves;
+}
+
+// Two records of the same day's session: keep the most sets per exercise (the
+// dots stored a running count, so the later record already includes earlier sets).
+function mergeSessions(a, b) {
+  if (!a) return JSON.parse(JSON.stringify(b));
+  const out = JSON.parse(JSON.stringify(a));
+  if (out.type === 'rest' || b.type === 'rest') {
+    out.doneRec = Math.max(out.doneRec || 0, b.doneRec || 0);
+    return out;
+  }
+  (b.exercises || []).forEach(bx => {
+    const ax = (out.exercises || []).find(x => x.id === bx.id || x.name === bx.name);
+    if (!ax) { out.exercises.push(JSON.parse(JSON.stringify(bx))); return; }
+    ax.done = Math.max(ax.done || 0, bx.done || 0);
+    if (bx.weight) ax.weight = bx.weight;
+  });
+  out.totalSets = out.exercises.reduce((n, x) => n + (x.sets || 0), 0);
+  out.doneSets  = out.exercises.reduce((n, x) => n + (x.done || 0), 0);
+  return out;
+}
+
+// Pure: apply the moves to history and logged sets together, so the two stay in step.
+function applyDateFix(hist, done, moves) {
+  const h = Object.assign({}, hist), c = Object.assign({}, done);
+  moves.forEach(m => { delete h[m.from]; });
+  moves.forEach(m => {
+    const moved = Object.assign(JSON.parse(JSON.stringify(m.entry)), { date: m.to });
+    h[m.to] = mergeSessions(h[m.to] && h[m.to] !== m.entry ? h[m.to] : null, moved);
+    h[m.to].date = m.to;
+    if (c[m.from]) {
+      const into = Object.assign({}, c[m.to] || {});
+      Object.entries(c[m.from]).forEach(([id, n]) => { into[id] = Math.max(into[id] || 0, n); });
+      c[m.to] = into;
+      delete c[m.from];
+    }
+  });
+  return { history: h, done: c };
+}
+
+function dateFixCard() {
+  if (lsGet(DATEFIX_DISMISSED)) return null;
+  const moves = misdatedSessions(lsGet('wt-history') || {});
+  if (!moves.length) return null;
+  const card = mk('div', 'datefix');
+  card.appendChild(mk('div', 'datefix-hd', moves.length + ' session' + (moves.length === 1 ? ' looks' : 's look') + ' filed under the wrong day'));
+  card.appendChild(mk('div', 'datefix-sub',
+    'Before v1.3, sets logged late in the evening were saved under the next day. Each of these was logged as one weekday but saved on another — the app still has the weekday you were on, so it knows where they belong.'));
+  const DAYN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  moves.forEach(m => {
+    const row = mk('div', 'datefix-row');
+    row.appendChild(mk('span', 'datefix-move', DAYN[weekdayOf(m.from)] + ' ' + fmtShortDate(m.from) + ' → ' + DAYN[weekdayOf(m.to)] + ' ' + fmtShortDate(m.to)));
+    const e = m.entry;
+    row.appendChild(mk('span', 'datefix-what', (e.label || e.type || '').toString().toUpperCase() +
+      (e.type === 'rest' ? '' : ' · ' + (e.doneSets || 0) + '/' + (e.totalSets || 0) + ' sets') +
+      (m.mergesInto ? ' · combined with what’s already there' : '')));
+    card.appendChild(row);
+  });
+  const btns = mk('div', 'datefix-btns');
+  const go = mk('button', 'gist-save-btn', 'MOVE ' + (moves.length === 1 ? 'IT' : 'THEM')); go.dataset.datefix = 'apply';
+  const no = mk('button', 'in-link', 'Leave them as they are'); no.dataset.datefix = 'dismiss';
+  btns.appendChild(go); btns.appendChild(no); card.appendChild(btns);
+  card.addEventListener('click', e => {
+    const b = e.target.closest('[data-datefix]'); if (!b) return;
+    if (b.dataset.datefix === 'apply') {
+      const r = applyDateFix(lsGet('wt-history') || {}, completions, misdatedSessions(lsGet('wt-history') || {}));
+      lsSet('wt-history', r.history);
+      completions = r.done; lsSet('wt-done', completions);
+      scheduleSyncToGist();
+      showSyncBar('ok', '✓ Moved ' + moves.length + ' session' + (moves.length === 1 ? '' : 's') + ' to the day ' + (moves.length === 1 ? 'it was' : 'they were') + ' logged');
+    } else {
+      lsSet(DATEFIX_DISMISSED, true);
+    }
+    renderHistory(); renderHeader(); renderMain();
+  });
+  return card;
+}
+
 function renderHistory() {
   const container = document.getElementById('historyView');
   container.textContent = '';
@@ -4628,6 +4812,9 @@ function renderHistory() {
     : dates.length + ' session' + (dates.length === 1 ? '' : 's') + ' logged';
   hdr.appendChild(hdrTop); hdr.appendChild(sub);
   container.appendChild(hdr);
+
+  const fix = dateFixCard();
+  if (fix) container.appendChild(fix);
 
   // gist backup section
   const gistSection = document.createElement('div'); gistSection.id = 'gistSection';
