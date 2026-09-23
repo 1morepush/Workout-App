@@ -18,7 +18,8 @@ that is a guess must never look like a fact. So:
   invent numbers. It only talks; it has no path to change data.
 - Intake targets come from `bodyPlanFor()` (weight, body fat, goal) or, without
   a weight, from `MEAL_PLAN`. Same pattern: every number with its reason, and a
-  number the user typed wins until they reset it.
+  number the user typed wins until they reset it. `calibrationFor()` only ever
+  *suggests* a correction from weigh-ins; it's applied when the user taps Use.
 - Intake flags come from fixed thresholds (FDA daily values, 20% = "high"), not
   from the model. The model only reads labels and estimates meals, and every
   result goes through a review sheet before it is saved, tagged `LABEL`/`EST.`.
@@ -62,6 +63,9 @@ Say in your reply which digit moved and why.
   tab pins its own semantic colours for that reason.
 - **Model output is untrusted.** Render it with `textContent`, never
   `innerHTML`.
+- **Feedback loops.** Calibration assumes intake = the current target when meals
+  aren't logged. After a calibration it must only use weigh-ins from that date on,
+  or each Use lowers the target again (caught before shipping; tested).
 - **Floating buttons.** The add/reset buttons reach ~185px up from the bottom.
   `#main` has matching bottom padding so the last card can scroll clear.
 
