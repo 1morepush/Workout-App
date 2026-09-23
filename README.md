@@ -110,6 +110,21 @@ The workout plan and meal plan are defined as data arrays inline in `index.html`
 
 ---
 
+## Running the Tests
+
+Browser tests cover every tab: set logging and dates across timezones, plan targets for every lift and week, the rest timer, the Intake tab's scanning and flags, the Coach, and release notes. They run automatically on GitHub for every pull request. To run them yourself:
+
+```bash
+cd tests
+npm ci
+npx playwright install chromium   # first time only
+npx playwright test
+```
+
+The AI is never called for real — tests fake Groq's responses — so no API key is needed.
+
+---
+
 ## Tech Stack
 
 | What | How |
@@ -131,5 +146,7 @@ The workout plan and meal plan are defined as data arrays inline in `index.html`
 Workout-App/
 ├── index.html    # Entire app — HTML, CSS, JS, and service worker in one file
 ├── CLAUDE.md     # How to work on this repo with Claude Code: the core rule, versioning, known pitfalls
-└── start.sh      # Launches a local HTTP server (needed for service worker)
+├── start.sh      # Launches a local HTTP server (needed for service worker)
+├── tests/        # Browser tests (Playwright) — dev-only, the app has no dependencies
+└── .github/workflows/tests.yml   # Runs the tests on every pull request
 ```

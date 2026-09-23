@@ -64,25 +64,34 @@ Say in your reply which digit moved and why.
 
 ## Verifying before you push
 
-There is no test suite committed yet. At minimum:
+Browser tests live in `tests/` (Playwright; dev-only — the app itself still has
+no dependencies). GitHub runs them on every PR and every push to `main`.
 
 ```sh
-# 1. The script parses
-node -e 'const h=require("fs").readFileSync("index.html","utf8");
-for (const m of h.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) new Function(m[1]);
-console.log("ok")'
+cd tests && npm ci && npx playwright test
 ```
 
-2. Boot the page in headless Chromium at a phone viewport (390×844) and click
-   through every tab with no page errors. In Claude Code on the web, Chromium is
-   at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`; install
-   `playwright-core` in a scratch directory, not in this repo.
-3. There is no Groq key in the sandbox. Intercept `https://api.groq.com/**`
-   and assert on the request the app sends (model, params, payload) and on how
-   it handles replies and errors. Say plainly that the live model was not
-   exercised.
-4. Look at screenshots of anything you changed visually. Several layout bugs
-   here were only visible that way.
+In Claude Code on the web, don't run `playwright install`; point at the
+preinstalled browser instead (check the build number with `ls /opt/pw-browsers`):
+
+```sh
+CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx playwright test
+```
+
+- Every test opens the app at a fixed moment (Monday 15 June 2026, New York) on
+  a 390×844 phone, and fails if the page throws. See `tests/specs/fixtures.js`.
+- There is no Groq key in the sandbox or CI. Tests fake `api.groq.com`, assert
+  on what the app sends, and script the replies. Say plainly that the live
+  model was not exercised.
+- `specs/guards.spec.js` turns the list above into checks. When one fails, fix
+  the code. Only edit a guard's list (e.g. `DEVICE_ONLY`, `RETIRED`) when the
+  code is right and the list is out of date, and write down why.
+- No retries: a test that fails once has found something.
+- A new feature comes with tests, and a bug fix with a test that fails without
+  the fix. Before trusting a new test, break the code it covers and watch it fail.
+- Tests change nothing a user can see, so they get no release entry.
+- Still look at screenshots of anything you changed visually. Several layout bugs
+  here were only visible that way.
 
 ## Workflow
 

@@ -1,0 +1,11 @@
+{
+  "name": "train-tests",
+  "private": true,
+  "description": "Browser tests for index.html. The app itself has no dependencies; these are dev-only.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
