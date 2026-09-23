@@ -44,6 +44,17 @@ test('every storage key is either backed up or deliberately device-only', async 
   expect(both, 'a device-only key must not be synced').toEqual([]);
 });
 
+test('logged sets have one writer: commitHistory() is the only code that saves them', () => {
+  // Two stores that each got written on their own is how History edits used to be
+  // undone and deleted sessions came back. Everything else must go through it.
+  const src = source();
+  expect(src.match(/lsSet\(\s*['"]wt-history['"]/g) || [], 'wt-history writers').toHaveLength(1);
+  expect(src.match(/lsSet\(\s*['"]wt-done['"]/g) || [], 'wt-done writers').toHaveLength(1);
+  const body = src.slice(src.indexOf('function commitHistory('), src.indexOf('function sessionFor('));
+  expect(body).toMatch(/lsSet\('wt-history'/);
+  expect(body).toMatch(/lsSet\('wt-done'/);
+});
+
 test('Groq model ids are not ones Groq has already shut down', async ({ app, page }) => {
   // From console.groq.com/docs/deprecations. Extend when Groq retires more.
   const RETIRED = [

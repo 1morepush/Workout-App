@@ -103,7 +103,10 @@ test.describe('sessions misfiled before v1.3', () => {
     await app.tab('history');
     await page.getByRole('button', { name: 'Leave them as they are' }).click();
     await expect(page.locator('.datefix')).toHaveCount(0);
-    expect(await app.storage('wt-history')).toEqual(HIST);
+    // Nothing moved: same dates, same sets. (Since v1.9 entries also gain a per-set `log`.)
+    const kept = await app.storage('wt-history');
+    const shape = h => Object.fromEntries(Object.entries(h).map(([d, e]) => [d, [e.date, e.dayIdx, e.exercises.map(x => [x.id, x.done])]]));
+    expect(shape(kept)).toEqual(shape(HIST));
     await page.reload();
     await app.tab('history');
     await expect(page.locator('.datefix')).toHaveCount(0);

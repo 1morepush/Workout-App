@@ -14,6 +14,8 @@ Five tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
 - **Day-based workout plan** — each day has its own exercises (built around a RECOMP 18-month plan)
 - **Set tracker** — tap to log sets and reps as you complete them; visual progress bar shows completed vs. planned
 - **Plan targets, with the reason** — each lift shows this week's target from the 12-week plan and why: your start weight, the phase, the steps added, or what a deload is 65% of. Tap **Use** to take it
+- **Reps** — tap the chip under a set to log how many reps you did; Enter moves to the next set
+- **When to add weight** — each lift reads last session's reps (double progression): add weight once every set hit the top of the range, otherwise stay and add reps. Tap **Use** to take a new weight
 - **Rest timer** — starts automatically after logging a set; flashes when rest is over
 - **Add / reset exercises** — FAB buttons to add a custom exercise or reset the day
 - **Workout complete banner** — fires when all exercises are done
@@ -38,7 +40,7 @@ Five tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
 - **Back-log** — step to previous days to add something you forgot
 
 ### 📊 History
-- **Workout log** — scrollable history of every session stored locally
+- **Workout log** — every session, with reps per set; edit sets, weights and reps for past sessions
 - **Strength charts** — per-exercise volume/rep history over time
 - **Gist sync status** — shows last sync time and lets you trigger a manual sync
 - **What's new** — release notes for every version; a dot on the History tab means there's something you haven't seen

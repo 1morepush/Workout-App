@@ -922,6 +922,23 @@ body::after {
 .rel-list li { font-size: 13px; color: var(--text-sub); line-height: 1.5; padding-left: 13px; position: relative; }
 .rel-list li::before { content: '·'; position: absolute; left: 2px; color: var(--gold); }
 
+/* ── REPS + NEXT ─────────────────────────────────── */
+.reps-row { display: flex; align-items: center; gap: 6px; padding: 8px 14px 0; flex-wrap: wrap; }
+.reps-lbl { font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-sub); margin-right: 2px; }
+.reps-chip, .reps-input {
+  width: 38px; height: 28px; border-radius: 7px; border: 1px solid var(--border-md); background: var(--bg-inner);
+  color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; text-align: center; cursor: pointer; padding: 0;
+}
+.reps-chip.is-empty { color: var(--text-sub); border-style: dashed; }
+.reps-input { border-color: var(--day-color); outline: none; cursor: text; }
+.reps-hint { font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-sub); }
+.next-row {
+  margin: 6px 14px 2px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-md); background: var(--bg-inner);
+}
+.next-row .plan-lbl { color: var(--text-sub); }
+.next-row.is-add { border-color: color-mix(in srgb, #6FAF7E 40%, transparent); background: color-mix(in srgb, #6FAF7E 7%, transparent); }
+.next-row.is-add .plan-lbl { color: #6FAF7E; }
+
 /* ── PLAN TARGET ON CARDS ────────────────────────── */
 .plan-row {
   margin: 8px 14px 2px; padding: 8px 10px; border-radius: 8px;   /* inset to match card content */
@@ -1675,6 +1692,17 @@ const EXERCISE_MUSCLES = {
 // Versions before 1.2 were assigned after the fact, from git history. From 1.2 on
 // they are the numbers the app actually showed.
 const RELEASES = [
+  { version: '1.9', name: 'One More Rep', date: '2026-09-23',
+    headline: 'Log your reps, and each lift says when you’ve earned more weight',
+    changes: [
+      'Log reps: tap the chip under a set and type what you did. Enter jumps to the next set.',
+      'Each exercise now says what last session’s reps mean: add weight (tap Use to take it), stay and add reps, or finish all your sets first. It only makes the call once reps are logged — it never guesses.',
+      'When the schedule is ahead of your reps, it says so: the target’s there, but double progression says earn it first.',
+      'History shows your reps, and you can type them in for past sessions.',
+      'Deleting a session in History now sticks. The next tap on Train used to bring its sets back.',
+      'Changing a session’s sets in History is no longer undone by the next tap on Train.',
+      'The Coach sees last session’s reps and gives the same verdict.',
+    ] },
   { version: '1.8', name: 'Spot Check', date: '2026-09-23',
     headline: 'Fix a wrong weigh-in, and put misfiled workouts back on the right day',
     changes: [
@@ -1809,15 +1837,14 @@ let coachActiveSessionId = null; // null=list, 'new'=blank chat, 'session_xxx'=e
 let viewDay     = TODAY_IDX;
 let timer       = {active:false, secs:90, iv:null, forExId:null, endsAt:0};
 
-function saveAll() { lsSet('wt-plans',workouts); lsSet('wt-done',completions); lsSet('wt-nextid',nextId); scheduleSyncToGist(); }
+// Logged sets aren't saved here: commitHistory() is their only writer.
+function saveAll() { lsSet('wt-plans',workouts); lsSet('wt-nextid',nextId); scheduleSyncToGist(); }
 
 function getDone(id)   { return (completions[viewDayStr()]||{})[id] || 0; }
 function setDone(id,n) {
-  const ds = viewDayStr();
-  if (!completions[ds]) completions[ds]={};
-  completions[ds][id]=n;
-  lsSet('wt-done',completions);
-  saveHistorySnapshot();
+  const ds = viewDayStr(), day = workouts[viewDay];
+  if (day.type === 'rest') setRecovery(ds, viewDay, id, n > 0);
+  else logSets(ds, viewDay, id, n);
 }
 function findEx(id)    { for (const d of workouts) for (const e of (d.exercises||[])) if (e.id===id) return e; return null; }
 
@@ -2035,8 +2062,26 @@ function buildCard(ex) {
   dotsRow.appendChild(wtCol);
   card.appendChild(dotsRow);
 
-  // previous session weight — separate row, clearly read-only
-  const pw = getPrevWeight(ex.name);
+  // this day's logged sets: reps per set, tap to record
+  const dayLog = (() => { const e = readHistory()[viewDayStr()]; const x = e && e.exercises && e.exercises.find(y => y.id === ex.id);
+                          return x && Array.isArray(x.log) ? x.log : []; })();
+  if (dayLog.length) {
+    const rr = mk('div', 'reps-row');
+    rr.appendChild(mk('span', 'reps-lbl', 'Reps'));
+    dayLog.forEach((set, i) => {
+      const chip = mk('button', 'reps-chip' + (set.reps == null ? ' is-empty' : ''), set.reps == null ? '–' : String(set.reps));
+      chip.dataset.repsEx = ex.id; chip.dataset.repsI = String(i);
+      chip.setAttribute('aria-label', 'Reps for set ' + (i + 1));
+      rr.appendChild(chip);
+    });
+    if (dayLog.some(set => set.reps == null)) rr.appendChild(mk('span', 'reps-hint', 'tap to log'));
+    card.appendChild(rr);
+  }
+
+  const prog = progressionFor(ex, lastSessionFor(readHistory(), ex, viewDayStr()), calcWeek);
+
+  // previous session weight — separate row, clearly read-only (the Next line says it when shown)
+  const pw = prog ? null : getPrevWeight(ex.name);
   if (pw) {
     const pwRow = document.createElement('div'); pwRow.className = 'prev-wt-row';
     const pwLabel = document.createElement('span'); pwLabel.className = 'prev-wt-label';
@@ -2065,6 +2110,28 @@ function buildCard(ex) {
     }
     const why = document.createElement('div'); why.className = 'plan-why'; why.textContent = plan.why;
     row.appendChild(top); row.appendChild(why);
+    card.appendChild(row);
+  }
+
+  // what last session's reps say: add weight, stay, finish the sets, or log reps
+  if (prog) {
+    const row = mk('div', 'next-row is-' + prog.verdict);
+    const top = mk('div', 'plan-top');
+    top.appendChild(mk('span', 'plan-lbl', 'Next'));
+    if (prog.verdict === 'add' && prog.next) {
+      top.appendChild(mk('span', 'plan-val', fmtW(prog.next)));
+      if (Math.abs((parseFloat(ex.weight) || 0) - prog.next) >= 0.01) {
+        const use = mk('button', 'plan-use', 'Use'); use.dataset.useNext = ex.id;
+        use.setAttribute('aria-label', 'Set weight to ' + fmtW(prog.next));
+        top.appendChild(use);
+      }
+    }
+    row.appendChild(top);
+    let txt = prog.text;
+    if (prog.verdict === 'stay' && plan && prog.lbs && plan.target > prog.lbs) {
+      txt += ' The schedule says ' + fmtW(plan.target) + ' this week — double progression says earn it first.';
+    }
+    row.appendChild(mk('div', 'plan-why', txt));
     card.appendChild(row);
   }
 
@@ -2227,6 +2294,19 @@ document.getElementById('main').addEventListener('click', e => {
   const rec=e.target.closest('[data-rec]');
   if (rec && viewDay===TODAY_IDX) { setDone(rec.dataset.rec, getDone(rec.dataset.rec)?0:1); renderMain(); return; }
 
+  // reps chip — record reps for one set; Enter moves on to the next empty one
+  const rc = e.target.closest('[data-reps-ex]');
+  if (rc) { editReps(rc); return; }
+
+  // Next "Use" — take the weight the double-progression rule earned
+  const un = e.target.closest('[data-use-next]');
+  if (un) {
+    const ex = findEx(un.dataset.useNext);
+    const prog = ex && progressionFor(ex, lastSessionFor(readHistory(), ex, viewDayStr()), calcWeek);
+    if (ex && prog && prog.next) { ex.weight = fmtW(prog.next); saveAll(); replaceCard(ex, true, getDone(ex.id)); }
+    return;
+  }
+
   // plan "Use" — set the working weight to this week's target (the user's call, one tap)
   const up=e.target.closest('[data-use-plan]');
   if (up) {
@@ -2269,6 +2349,32 @@ function updateSetsBar() {
   const total=day.exercises.reduce((a,e)=>a+e.sets,0);
   const done =day.exercises.reduce((a,e)=>a+Math.min(getDone(e.id),e.sets),0);
   document.getElementById('setsCount').textContent=done+' / '+total;
+}
+
+function editReps(chip) {
+  const exId = chip.dataset.repsEx, i = +chip.dataset.repsI, ex = findEx(exId);
+  if (!ex) return;
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.inputMode = 'numeric'; inp.className = 'reps-input';
+  inp.value = chip.classList.contains('is-empty') ? '' : chip.textContent;
+  inp.setAttribute('aria-label', 'Reps for set ' + (i + 1));
+  chip.replaceWith(inp); inp.focus(); inp.select();
+  let done = false;
+  function commit(advance) {
+    if (done) return; done = true;
+    const v = parseInt(inp.value, 10);
+    setReps(viewDayStr(), exId, i, isFinite(v) && v >= 0 && v <= 100 ? v : null);
+    replaceCard(ex, true, getDone(exId));
+    if (advance) {
+      const next = document.querySelector('[data-reps-ex="' + exId + '"][data-reps-i="' + (i + 1) + '"].is-empty');
+      if (next) editReps(next);
+    }
+  }
+  inp.addEventListener('blur', () => commit(false));
+  inp.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(true); }
+    if (ev.key === 'Escape') { done = true; replaceCard(ex, true, getDone(exId)); }
+  });
 }
 
 function inlineEditWeight(exId, chip) {
@@ -2335,13 +2441,7 @@ document.getElementById('addConfirm').addEventListener('click',()=>{
 document.getElementById('fabReset').addEventListener('click',()=>document.getElementById('resetDialog').classList.add('open'));
 document.getElementById('resetNo').addEventListener('click', ()=>document.getElementById('resetDialog').classList.remove('open'));
 document.getElementById('resetYes').addEventListener('click',()=>{
-  const ds=viewDayStr();
-  if(completions[ds]){delete completions[ds];lsSet('wt-done',completions);}
-  // Also drop the history snapshot for that day, or the History tab keeps
-  // reporting the sets we just cleared.
-  const hist=lsGet('wt-history')||{};
-  if(hist[ds]){delete hist[ds];lsSet('wt-history',hist);}
-  scheduleSyncToGist();
+  deleteSession(viewDayStr());   // History and the dot counts go together
   document.getElementById('resetDialog').classList.remove('open');
   stopTimer(); renderHeader(); renderMain();
 });
@@ -2692,8 +2792,60 @@ function planFor(name, week = calcWeek) {
   return { target, working, start, steps, incr: ex.incr, week: wi.week, phase: wi.phase, deload: wi.deload, why };
 }
 
+// ─── DOUBLE PROGRESSION: what last session's reps say about today ───
+// The overload rules: start at the bottom of the rep range, add reps each
+// session, and once every set reaches the top, add weight. This reads the last
+// session's logged sets and says which of those applies — only when the reps
+// were actually recorded, never on a guess.
+
+function repRange(s) {
+  const m = String(s == null ? '' : s).match(/^\s*(\d+)\s*(?:[-–]\s*(\d+))?\s*$/);
+  if (!m) return null;
+  const lo = +m[1], hi = +(m[2] || m[1]);
+  return lo > 0 && lo <= hi ? [lo, hi] : null;
+}
+
+// Most recent session before `beforeDs` with logged sets of this exercise.
+function lastSessionFor(hist, ex, beforeDs) {
+  const dates = Object.keys(hist).filter(d => d < beforeDs).sort().reverse();
+  for (const d of dates) {
+    const e = hist[d];
+    if (!e || e.type === 'rest') continue;
+    const x = (e.exercises || []).find(y => y.id === ex.id || y.name === ex.name);
+    if (x && x.log && x.log.length) return { date: d, x };
+  }
+  return null;
+}
+
+// Pure: → null, or { verdict: 'add' | 'stay' | 'finish' | 'reps', lbs, next, text }
+function progressionFor(ex, last, week) {
+  const range = repRange(ex.reps);
+  if (!range || !last || weekInfo(week).deload) return null;
+  const [lo, hi] = range, log = last.x.log;
+  const counts = {};
+  log.forEach(s => { if (s.lbs) counts[s.lbs] = (counts[s.lbs] || 0) + 1; });
+  const lbs = +Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || parseLbs(last.x.weight);
+  const at = lbs ? ' at ' + fmtW(lbs) : '';
+  const when = 'Last time (' + fmtShortDate(last.date) + '): ';
+  if (log.some(s => s.reps == null)) {
+    return { verdict: 'reps', lbs, text: when + log.length + ' set' + (log.length === 1 ? '' : 's') + at + ', reps not logged. Log reps to see when to add weight.' };
+  }
+  const reps = log.map(s => s.reps).join('·');
+  if (log.length < ex.sets) {
+    return { verdict: 'finish', lbs, text: when + log.length + ' of ' + ex.sets + ' sets' + at + ' (' + reps + '). Get all ' + ex.sets + ' sets to ' + hi + ' before adding weight.' };
+  }
+  if (log.every(s => s.reps >= hi)) {
+    const pe = planExercise(ex.name), incr = pe && pe.incr ? pe.incr : (lbs >= 50 ? 5 : 2.5);
+    const next = lbs ? lbs + incr : null;
+    return { verdict: 'add', lbs, next, text: when + reps + at + ' — the top of ' + lo + '–' + hi + ' on every set. ' +
+      (next ? 'Add ' + fmtW(incr) + ' → ' + fmtW(next) + '.' : 'Add weight.') };
+  }
+  return { verdict: 'stay', lbs, text: when + reps + at + '. ' + (lbs ? 'Stay at ' + fmtW(lbs) : 'Keep the weight') +
+    ' until every set reaches ' + hi + '.' };
+}
+
 // What the schedule can't know, said once wherever targets appear.
-const PLAN_LIMIT_NOTE = 'Targets follow the 12-week schedule. The app records sets, not reps, so it can’t tell whether you reached the top of your rep range. If you didn’t, stay at your current weight (double progression).';
+const PLAN_LIMIT_NOTE = 'Targets follow the 12-week schedule. The schedule doesn’t know how your sets went — log your reps, and the Next line on each exercise says whether you’ve earned the step (double progression) or should stay put.';
 
 function renderCalcSheet() {
   const container = document.getElementById('calcBody');
@@ -4397,6 +4549,7 @@ async function restoreFromGist() {
 
     workouts       = lsGet('wt-plans')       || defaultData();
     completions    = lsGet('wt-done')        || {};
+    migrateSetLog();   // a backup from before v1.9 comes back as counts
     nextId         = lsGet('wt-nextid')      || 500;
     calcWeek       = lsGet('wt-calc-week')   || 1;
     calcStarts     = lsGet('wt-calc-starts') || {};
@@ -4646,6 +4799,9 @@ document.getElementById('bottomNav').addEventListener('click', e => {
     main.style.display        = '';
     fab.style.display         = workouts[viewDay].type === 'rest' ? 'none' : 'flex';
     stickyShell.style.display = '';
+    // Redraw on the way in: History edits, a deleted session or a date fix may have
+    // changed this day's sets while the tab was hidden.
+    renderHeader(); renderMain();
   }
 });
 
@@ -4653,34 +4809,119 @@ document.getElementById('bottomNav').addEventListener('click', e => {
 //  HISTORY
 // ═══════════════════════════════════════════════════════════════
 
-function saveHistorySnapshot() {
-  const ds      = viewDayStr();
-  const day     = workouts[viewDay];
-  const dayC    = completions[ds] || {};
-  const history = lsGet('wt-history') || {};
+// ─── SET LOG: History is the one record of every set ───────────
+// Each exercise in a History session carries `log`: one entry per completed set,
+// { reps, lbs }. That is the truth. `done`, the session totals and the old
+// wt-done store (the dot counts) are all derived from it, and commitHistory() is
+// the only code that writes either store — so they can't drift apart, which is
+// how "Delete Session" used to come back and History edits used to be undone.
+// Reps start as null ("not logged"), never a guess: the add-weight suggestion
+// must only fire on reps the user actually recorded.
 
-  if (day.type === 'rest') {
-    const doneRec = (day.recovery || []).filter(r => dayC[r.id]).length;
-    history[ds] = {
-      date: ds, dayIdx: viewDay, type: 'rest',
-      label: day.label, dayName: day.dayName,
-      totalRec: (day.recovery || []).length, doneRec,
-    };
-  } else {
-    const exercises = day.exercises.map(ex => ({
-      id: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps,
-      weight: ex.weight, done: Math.min(dayC[ex.id] || 0, ex.sets),
-    }));
-    const totalSets = exercises.reduce((a, e) => a + e.sets, 0);
-    const doneSets  = exercises.reduce((a, e) => a + e.done,  0);
-    history[ds] = {
-      date: ds, dayIdx: viewDay, type: day.type,
-      label: day.label, dayName: day.dayName,
-      exercises, totalSets, doneSets,
-    };
+function parseLbs(w) { const n = parseFloat(String(w == null ? '' : w).replace(/[^0-9.]/g, '')); return isFinite(n) && n > 0 ? n : null; }
+function readHistory() { return lsGet('wt-history') || {}; }
+const clone = o => JSON.parse(JSON.stringify(o));
+
+function normSession(e, dayC) {
+  if (e.type === 'rest') {
+    if (!Array.isArray(e.recDone)) e.recDone = Object.keys(dayC || {}).filter(k => dayC[k]);
+    e.doneRec = e.recDone.length;
+    return e;
   }
-  lsSet('wt-history', history);
+  e.exercises = e.exercises || [];
+  e.exercises.forEach(x => {
+    if (!Array.isArray(x.log)) {                  // pre-v1.9 entry: counts only
+      const lbs = parseLbs(x.weight);
+      x.log = Array.from({ length: Math.max(0, x.done | 0) }, () => ({ reps: null, lbs }));
+    }
+    x.done = x.log.length;
+  });
+  e.totalSets = e.exercises.reduce((a, x) => a + (x.sets || 0), 0);
+  e.doneSets  = e.exercises.reduce((a, x) => a + Math.min(x.done, x.sets || x.done), 0);
+  return e;
+}
+
+// The dot counts, derived from History.
+function projectDone(hist) {
+  const out = {};
+  Object.keys(hist).forEach(ds => {
+    const e = hist[ds], day = {};
+    if (e.type === 'rest') (e.recDone || []).forEach(id => { day[id] = 1; });
+    else (e.exercises || []).forEach(x => { if (x.log && x.log.length) day[x.id] = x.log.length; });
+    if (Object.keys(day).length) out[ds] = day;
+  });
+  return out;
+}
+
+// The only writer of logged sets.
+function commitHistory(hist) {
+  Object.keys(hist).forEach(ds => { if (!hist[ds]) delete hist[ds]; else normSession(hist[ds]); });
+  lsSet('wt-history', hist);
+  completions = projectDone(hist);
+  lsSet('wt-done', completions);
   scheduleSyncToGist();
+}
+
+// The day's session, created from the plan if needed, with every plan exercise
+// present (so totals are right). Exercises added in History are kept as they are.
+function sessionFor(hist, ds, dayIdx) {
+  const day = workouts[dayIdx];
+  const e = hist[ds] ? normSession(hist[ds]) : normSession({ date: ds, dayIdx, type: day.type, label: day.label, dayName: day.dayName,
+                                                              exercises: [], recDone: [] });
+  if (day.type === 'rest') { e.totalRec = (day.recovery || []).length; return e; }
+  const planned = day.exercises.map(px => {
+    const x = e.exercises.find(y => y.id === px.id);
+    return x || { id: px.id, name: px.name, sets: px.sets, reps: px.reps, weight: px.weight, log: [] };
+  });
+  const extra = e.exercises.filter(x => !day.exercises.some(px => px.id === x.id) && x.log.length);
+  e.exercises = planned.concat(extra);
+  hist[ds] = e;
+  return e;
+}
+
+// Tap on a dot: the exercise now has `n` sets done that day.
+function logSets(ds, dayIdx, exId, n) {
+  const hist = readHistory(), e = sessionFor(hist, ds, dayIdx);
+  const x = e.exercises.find(y => y.id === exId), px = findEx(exId);
+  if (!x) return;
+  if (px) { x.name = px.name; x.sets = px.sets; x.reps = px.reps; x.weight = px.weight; }
+  const lbs = parseLbs(x.weight);
+  while (x.log.length < n) x.log.push({ reps: null, lbs });
+  x.log.length = Math.max(0, n);
+  commitHistory(hist);
+}
+
+function setRecovery(ds, dayIdx, recId, on) {
+  const hist = readHistory(), e = sessionFor(hist, ds, dayIdx);
+  e.recDone = e.recDone.filter(id => id !== recId);
+  if (on) e.recDone.push(recId);
+  commitHistory(hist);
+}
+
+// Reps for one set; null clears them.
+function setReps(ds, exId, i, reps) {
+  const hist = readHistory(), e = hist[ds];
+  if (!e) return;
+  normSession(e);
+  const x = e.exercises.find(y => y.id === exId);
+  if (!x || !x.log[i]) return;
+  x.log[i].reps = reps;
+  commitHistory(hist);
+}
+
+function deleteSession(ds) {
+  const hist = readHistory();
+  delete hist[ds];
+  commitHistory(hist);
+}
+
+// Bring pre-v1.9 data into the log: counts become sets with reps not logged, and
+// the dot counts are re-derived from History. Only writes when something changed.
+function migrateSetLog() {
+  const raw = lsGet('wt-history') || {}, before = JSON.stringify(raw), doneBefore = JSON.stringify(completions || {});
+  const hist = clone(raw);
+  Object.keys(hist).forEach(ds => normSession(hist[ds], (completions || {})[ds]));
+  if (JSON.stringify(hist) !== before || JSON.stringify(projectDone(hist)) !== doneBefore) commitHistory(hist);
 }
 
 // ─── DATE FIX: sessions filed under the wrong day before v1.3 ───
@@ -4721,13 +4962,15 @@ function mergeSessions(a, b) {
   if (!a) return JSON.parse(JSON.stringify(b));
   const out = JSON.parse(JSON.stringify(a));
   if (out.type === 'rest' || b.type === 'rest') {
-    out.doneRec = Math.max(out.doneRec || 0, b.doneRec || 0);
+    out.recDone = [...new Set([...(out.recDone || []), ...(b.recDone || [])])];
+    out.doneRec = Math.max(out.doneRec || 0, b.doneRec || 0, out.recDone.length);
     return out;
   }
   (b.exercises || []).forEach(bx => {
     const ax = (out.exercises || []).find(x => x.id === bx.id || x.name === bx.name);
     if (!ax) { out.exercises.push(JSON.parse(JSON.stringify(bx))); return; }
-    ax.done = Math.max(ax.done || 0, bx.done || 0);
+    if ((bx.log || []).length > (ax.log || []).length) ax.log = clone(bx.log);   // the fuller record wins
+    ax.done = ax.log.length;
     if (bx.weight) ax.weight = bx.weight;
   });
   out.totalSets = out.exercises.reduce((n, x) => n + (x.sets || 0), 0);
@@ -4737,20 +4980,16 @@ function mergeSessions(a, b) {
 
 // Pure: apply the moves to history and logged sets together, so the two stay in step.
 function applyDateFix(hist, done, moves) {
-  const h = Object.assign({}, hist), c = Object.assign({}, done);
+  const h = {};
+  Object.keys(hist).forEach(ds => { h[ds] = normSession(clone(hist[ds]), (done || {})[ds]); });
+  moves = moves.map(m => Object.assign({}, m, { entry: h[m.from] }));
   moves.forEach(m => { delete h[m.from]; });
   moves.forEach(m => {
     const moved = Object.assign(JSON.parse(JSON.stringify(m.entry)), { date: m.to });
-    h[m.to] = mergeSessions(h[m.to] && h[m.to] !== m.entry ? h[m.to] : null, moved);
+    h[m.to] = normSession(mergeSessions(h[m.to] && h[m.to] !== m.entry ? h[m.to] : null, moved));
     h[m.to].date = m.to;
-    if (c[m.from]) {
-      const into = Object.assign({}, c[m.to] || {});
-      Object.entries(c[m.from]).forEach(([id, n]) => { into[id] = Math.max(into[id] || 0, n); });
-      c[m.to] = into;
-      delete c[m.from];
-    }
   });
-  return { history: h, done: c };
+  return { history: h, done: projectDone(h) };   // the dot counts follow History
 }
 
 function dateFixCard() {
@@ -4778,10 +5017,7 @@ function dateFixCard() {
   card.addEventListener('click', e => {
     const b = e.target.closest('[data-datefix]'); if (!b) return;
     if (b.dataset.datefix === 'apply') {
-      const r = applyDateFix(lsGet('wt-history') || {}, completions, misdatedSessions(lsGet('wt-history') || {}));
-      lsSet('wt-history', r.history);
-      completions = r.done; lsSet('wt-done', completions);
-      scheduleSyncToGist();
+      commitHistory(applyDateFix(readHistory(), completions, misdatedSessions(readHistory())).history);
       showSyncBar('ok', '✓ Moved ' + moves.length + ' session' + (moves.length === 1 ? '' : 's') + ' to the day ' + (moves.length === 1 ? 'it was' : 'they were') + ' logged');
     } else {
       lsSet(DATEFIX_DISMISSED, true);
@@ -4997,9 +5233,11 @@ function buildHistCard(dateStr, entry) {
 
     function rebuildExRows() {
       exList.textContent = '';
-      const history = lsGet('wt-history') || {};
-      const current = history[dateStr];
+      const history = readHistory();
+      const current = history[dateStr] && normSession(history[dateStr]);
       if (!current) return;
+      // Every change below goes through commitHistory(), so the Train tab's dots follow.
+      const change = fn => { const h = readHistory(); normSession(h[dateStr]); fn(h[dateStr]); commitHistory(h); };
 
       current.exercises.forEach((ex, idx) => {
         const row  = document.createElement('div'); row.className = 'hist-ex-row';
@@ -5011,13 +5249,11 @@ function buildHistCard(dateStr, entry) {
           const setsInp = document.createElement('input'); setsInp.type = 'number';
           setsInp.className = 'hist-ex-sets-inp'; setsInp.value = ex.done;
           setsInp.min = '0'; setsInp.max = ex.sets;
-          setsInp.addEventListener('change', () => {
-            const h = lsGet('wt-history') || {};
-            h[dateStr].exercises[idx].done = Math.max(0, Math.min(ex.sets, parseInt(setsInp.value)||0));
-            // recalc doneSets
-            h[dateStr].doneSets = h[dateStr].exercises.reduce((a,e) => a + (e.done||0), 0);
-            lsSet('wt-history', h); scheduleSyncToGist();
-          });
+          setsInp.addEventListener('change', () => change(e => {
+            const x = e.exercises[idx], n = Math.max(0, Math.min(x.sets || 99, parseInt(setsInp.value) || 0));
+            while (x.log.length < n) x.log.push({ reps: null, lbs: parseLbs(x.weight) });
+            x.log.length = n;
+          }));
           const setsLbl = document.createElement('span'); setsLbl.className = 'hist-ex-sets';
           setsLbl.textContent = '/' + ex.sets;
 
@@ -5025,32 +5261,44 @@ function buildHistCard(dateStr, entry) {
           const wtInp = document.createElement('input'); wtInp.type = 'text';
           wtInp.className = 'hist-ex-inp'; wtInp.value = ex.weight || '';
           wtInp.placeholder = 'weight';
-          wtInp.addEventListener('change', () => {
-            const h = lsGet('wt-history') || {};
-            h[dateStr].exercises[idx].weight = wtInp.value.trim();
-            lsSet('wt-history', h); scheduleSyncToGist();
-          });
+          wtInp.addEventListener('change', () => change(e => {
+            const x = e.exercises[idx]; x.weight = wtInp.value.trim();
+            x.log.forEach(set => { set.lbs = parseLbs(x.weight); });
+          }));
+
+          // reps for each set, e.g. "8 8 7 6"
+          const repsInp = document.createElement('input'); repsInp.type = 'text'; repsInp.inputMode = 'numeric';
+          repsInp.className = 'hist-ex-inp hist-ex-reps'; repsInp.placeholder = 'reps';
+          repsInp.value = (ex.log || []).map(r => r.reps == null ? '-' : r.reps).join(' ');
+          repsInp.setAttribute('aria-label', 'Reps for each set');
+          repsInp.addEventListener('change', () => change(e => {
+            const x = e.exercises[idx];
+            const nums = repsInp.value.split(/[^0-9-]+/).filter(Boolean).map(t => t === '-' ? null : Math.min(100, parseInt(t, 10)));
+            nums.forEach((r, i) => { if (!x.log[i]) x.log[i] = { reps: null, lbs: parseLbs(x.weight) }; x.log[i].reps = isFinite(r) ? r : null; });
+          }));
 
           // delete exercise
           const delBtn = document.createElement('button'); delBtn.className = 'hist-ex-del';
           delBtn.textContent = '×';
-          delBtn.addEventListener('click', e => {
-            e.stopPropagation();
-            const h = lsGet('wt-history') || {};
-            h[dateStr].exercises.splice(idx, 1);
-            h[dateStr].totalSets = h[dateStr].exercises.reduce((a,e2) => a + (e2.sets||0), 0);
-            h[dateStr].doneSets  = h[dateStr].exercises.reduce((a,e2) => a + (e2.done||0), 0);
-            lsSet('wt-history', h); scheduleSyncToGist();
+          delBtn.addEventListener('click', ev => {
+            ev.stopPropagation();
+            change(e => { e.exercises.splice(idx, 1); });
             rebuildExRows();
           });
 
-          meta.appendChild(setsInp); meta.appendChild(setsLbl); meta.appendChild(wtInp);
+          meta.appendChild(setsInp); meta.appendChild(setsLbl); meta.appendChild(wtInp); meta.appendChild(repsInp);
           row.appendChild(name); row.appendChild(meta); row.appendChild(delBtn);
         } else {
           const sets = document.createElement('div');
           sets.className = 'hist-ex-sets' + (ex.done >= ex.sets ? ' full' : '');
           sets.textContent = ex.done + '/' + ex.sets + ' sets';
           meta.appendChild(sets);
+          const reps = (ex.log || []).map(r => r.reps);
+          if (reps.some(r => r != null)) {
+            const rp = document.createElement('div'); rp.className = 'hist-ex-wt';
+            rp.textContent = reps.map(r => r == null ? '–' : r).join('·') + ' reps';
+            meta.appendChild(rp);
+          }
           if (ex.weight) {
             const wt = document.createElement('div'); wt.className = 'hist-ex-wt'; wt.textContent = ex.weight;
             meta.appendChild(wt);
@@ -5071,12 +5319,8 @@ function buildHistCard(dateStr, entry) {
         addBtn.textContent = '+ Add';
         addBtn.addEventListener('click', () => {
           const n = nameInp.value.trim(); if (!n) return;
-          const h = lsGet('wt-history') || {};
-          const newEx = { id: Date.now(), name: n, sets: 1, reps: 1, done: 1, weight: wtInp.value.trim() };
-          h[dateStr].exercises.push(newEx);
-          h[dateStr].totalSets = h[dateStr].exercises.reduce((a,e) => a + (e.sets||0), 0);
-          h[dateStr].doneSets  = h[dateStr].exercises.reduce((a,e) => a + (e.done||0), 0);
-          lsSet('wt-history', h); scheduleSyncToGist();
+          const w = wtInp.value.trim();
+          change(e => { e.exercises.push({ id: 'h' + Date.now(), name: n, sets: 1, reps: '', weight: w, log: [{ reps: null, lbs: parseLbs(w) }] }); });
           nameInp.value = ''; wtInp.value = '';
           rebuildExRows();
         });
@@ -5099,10 +5343,9 @@ function buildHistCard(dateStr, entry) {
         delSession.textContent = 'Delete Session';
         delSession.addEventListener('click', e => {
           e.stopPropagation();
-          const h = lsGet('wt-history') || {};
-          delete h[dateStr];
-          lsSet('wt-history', h); scheduleSyncToGist();
+          deleteSession(dateStr);   // the day's dots go too — it used to come back on the next tap
           card.remove();
+          renderHeader(); renderMain();
         });
         actions.appendChild(delSession);
       }
@@ -5220,7 +5463,7 @@ function buildCoachSystemPrompt() {
   let prompt = `You are a knowledgeable, encouraging personal trainer built into a workout tracking app. You know the user's full workout plan, their current weights, and their recent history. Be concise, specific, and practical. Use the data you have to give personalized advice.\n\n`;
 
   // The app's plan decides weights and deloads (planFor). The Coach explains them.
-  prompt += `WEIGHTS — IMPORTANT: The app's 12-week plan decides working weights and deload weeks. Each exercise below lists the plan's target for this week and the reason. When asked what weight to use, give that target and its reason in your own words. Do not invent different numbers. The app records completed sets but not reps, so you cannot know whether the user reached the top of their rep range — ask. If they did not, the plan's rule is to stay at their current weight (double progression). If they want to deviate, explain the tradeoff and leave the choice to them.\n\n`;
+  prompt += `WEIGHTS — IMPORTANT: The app's 12-week plan decides working weights and deload weeks. Each exercise below lists the plan's target for this week and the reason, and — where reps were logged — what last session's reps say under double progression (add weight only once every set reached the top of the range). When asked what weight to use, explain those in your own words. Do not invent different numbers. Where reps weren't logged, you can't know whether they reached the top of the range — ask. If they want to deviate, explain the tradeoff and leave the choice to them.\n\n`;
 
   prompt += `TODAY (${TODAY_STR}) — ${day.dayName} — ${day.type.toUpperCase()} DAY\n`;
   if (day.type !== 'rest' && day.exercises) {
@@ -5228,7 +5471,9 @@ function buildCoachSystemPrompt() {
       const done = Math.min(todayC[ex.id] || 0, ex.sets);
       const plan = planFor(ex.name);
       prompt += `  • ${ex.name}: ${ex.sets}×${ex.reps} @ ${ex.weight || 'bodyweight'} — ${done}/${ex.sets} sets done`;
-      prompt += plan ? ` — plan target ${fmtW(plan.target)} (${plan.why})\n` : `\n`;
+      prompt += plan ? ` — plan target ${fmtW(plan.target)} (${plan.why})` : '';
+      const prog = progressionFor(ex, lastSessionFor(readHistory(), ex, TODAY_STR), calcWeek);
+      prompt += prog ? ` — ${prog.text}\n` : `\n`;
     });
   } else {
     prompt += `  Rest/recovery day\n`;
@@ -5526,6 +5771,7 @@ function appendCoachBubble(msgsEl, role, text) {
 //  BOOT
 // ═══════════════════════════════════════════════════════════════
 
+migrateSetLog();
 renderHeader();
 renderMain();
 updateNewDot();

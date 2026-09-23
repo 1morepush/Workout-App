@@ -14,6 +14,9 @@ that is a guess must never look like a fact. So:
 - Every suggested weight comes from `planFor()` (section `PLAN RULES`), which
   returns the number *and* the sentence explaining it. Nothing else computes a
   weight. The calculator, the Train cards and the Coach all call it.
+- Whether to add weight comes from `progressionFor()` (double progression on the
+  last session's logged reps). Reps start as `null`, never a guess, so it can't
+  tell you to add weight you didn't earn.
 - The Coach is told the plan's targets and reasons and must explain them, not
   invent numbers. It only talks; it has no path to change data.
 - Intake targets come from `bodyPlanFor()` (weight, body fat, goal) or, without
@@ -45,9 +48,12 @@ Say in your reply which digit moved and why.
   evening workouts were filed under tomorrow. Use `isoLocal()`. The date shown
   and the date stored for a day must come from the same function
   (`viewDayDate()`).
-- **Two copies of the same fact.** Logged sets live in `wt-done` *and* a
-  snapshot in `wt-history`. Anything that changes one (reset, delete, edit) must
-  update the other, or History reports sets that no longer exist.
+- **Two copies of the same fact.** Logged sets used to be written separately to
+  `wt-done` and `wt-history`, so History edits got undone and deleted sessions
+  came back. Since v1.9 History (each exercise's per-set `log`) is the only
+  record; `wt-done` is derived from it, and `commitHistory()` is the only code
+  that writes either. Go through `logSets` / `setReps` / `deleteSession` /
+  `commitHistory` — a guard test fails if anything else writes them.
 - **New storage keys** must be added to `SYNC_KEYS`, or they are silently left
   out of the Gist backup. Per-device state (e.g. `wt-seen-version`) stays out on
   purpose.

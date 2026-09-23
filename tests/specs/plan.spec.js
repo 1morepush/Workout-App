@@ -68,7 +68,7 @@ test('changing the week in the calculator updates the cards behind it', async ({
   await page.evaluate(() => { renderCalcSheet(); document.getElementById('calcOverlay').classList.add('open'); });
   await page.locator('.calc-wk-btn', { hasText: /^8$/ }).click();
   await expect(page.locator('.calc-phase-banner')).toHaveText('DELOAD — WEEK 8 — 65% of your Phase 2 weight, focus on form');
-  await expect(page.locator('#calcBody')).toContainText('records sets, not reps');
+  await expect(page.locator('#calcBody')).toContainText('log your reps, and the Next line');
   await page.click('#calcClose');
   const row = page.locator('[data-card]').first().locator('.plan-row');
   await expect(row).toHaveClass(/is-deload/);
