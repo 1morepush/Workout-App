@@ -866,6 +866,190 @@ body::after {
   text-transform: uppercase; cursor: pointer;
 }
 
+/* ── INTAKE VIEW ─────────────────────────────────── */
+/* Semantic colors are fixed, not --day-color: on leg days the accent is rust,
+   which would make "over your limit" look identical to normal progress. */
+:root { --in-acc: #C9A84C; --in-over: #D9542C; --in-warn: #E3953A; --in-good: #6FAF7E; }
+#intakeView { flex: 1; padding: 16px 14px 24px; display: none; flex-direction: column; gap: 12px; }
+#intakeView.show { display: flex; }
+.in-hdr { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+.in-gear {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text-sub); background: none; border: 1px solid var(--border-md); border-radius: 6px;
+  padding: 6px 10px; cursor: pointer; margin-bottom: 4px;
+}
+.in-gear:active { border-color: var(--in-acc); color: var(--in-acc); }
+.in-date { display: flex; align-items: center; gap: 8px; }
+.in-date button {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border-md);
+  background: var(--bg-card); color: var(--text); font-size: 15px; line-height: 1; cursor: pointer;
+}
+.in-date button:disabled { opacity: .25; cursor: default; }
+.in-date-lbl {
+  font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .15em; text-transform: uppercase;
+  color: var(--text-sub); flex: 1; text-align: center;
+}
+.in-date-lbl b { color: var(--text); font-weight: 500; }
+
+.in-hero { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px 16px; }
+.in-hero-num {
+  font-family: 'Bebas Neue', cursive; font-size: 54px; line-height: .9; color: var(--text);
+  letter-spacing: .01em; font-variant-numeric: tabular-nums;
+}
+.in-hero-num span { font-size: 24px; color: var(--text-sub); margin-left: 4px; }
+.in-hero-sub {
+  font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--text-sub); margin: 7px 0 10px;
+}
+.in-hero-sub b { font-weight: 500; color: var(--in-acc); }
+.in-hero.state-over .in-hero-sub b { color: var(--in-over); }
+
+.in-bar { height: 6px; background: var(--bg-inner); border-radius: 3px; overflow: hidden; }
+.in-bar i { display: block; height: 100%; background: var(--in-acc); border-radius: 3px; transition: width .35s ease; }
+.state-over .in-bar i { background: var(--in-over); }
+.state-warn .in-bar i { background: var(--in-warn); }
+.state-met  .in-bar i { background: var(--in-good); }
+
+.in-add { display: flex; gap: 6px; }
+.in-add-btn {
+  flex: 1; padding: 11px 6px 10px; border-radius: 10px; border: 1px solid var(--border-md);
+  background: var(--bg-card); color: var(--text); font-family: 'Outfit', sans-serif; font-size: 12.5px;
+  font-weight: 500; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transition: transform .1s;
+}
+.in-add-btn .ico { font-size: 18px; line-height: 1; }
+.in-add-btn.primary { background: var(--in-acc); border-color: var(--in-acc); color: #0D0C0A; font-weight: 600; }
+.in-add-btn.locked { opacity: .45; }
+.in-add-btn:active { transform: scale(.97); }
+.in-note {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .1em; color: var(--text-sub);
+  line-height: 1.6; text-transform: uppercase;
+}
+.in-recent { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: -2px -14px 0; padding: 0 14px 2px; }
+.in-recent::-webkit-scrollbar { display: none; }
+.in-chip {
+  flex-shrink: 0; font-size: 12px; color: var(--text-sub); background: var(--bg-inner);
+  border: 1px solid var(--border-md); border-radius: 16px; padding: 6px 11px; cursor: pointer;
+  white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis;
+}
+.in-chip::before { content: '+ '; color: var(--in-acc); }
+.in-chip:active { border-color: var(--in-acc); color: var(--text); }
+
+.in-alert {
+  background: color-mix(in srgb, var(--in-over) 7%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--in-over) 35%, transparent);
+  border-radius: 12px; padding: 13px 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.in-alert.avoid-only {
+  background: color-mix(in srgb, var(--in-warn) 6%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--in-warn) 32%, transparent);
+}
+.in-alert-hd { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--in-over); font-weight: 500; }
+.in-alert.avoid-only .in-alert-hd { color: var(--in-warn); }
+.in-alert-sub { font-size: 11.5px; color: var(--text-sub); margin-top: -6px; line-height: 1.45; }
+.in-over-row { display: flex; flex-direction: column; gap: 3px; }
+.in-over-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 14px; color: var(--text); font-weight: 500; }
+.in-over-amt { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--in-over); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.in-over-src { font-size: 12px; color: var(--text-sub); line-height: 1.45; }
+.in-over-src b { color: var(--text); font-weight: 500; }
+/* Name on its own line: side-by-side, three chips squeezed the food name to "Doub…". */
+.in-avoid-row { display: flex; flex-direction: column; gap: 5px; }
+.in-avoid-name { font-size: 13.5px; color: var(--text); font-weight: 500; }
+.in-avoid-row .in-flags { justify-content: flex-start; }
+.in-flags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.in-flag {
+  font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 6px; border-radius: 4px; white-space: nowrap; color: var(--in-warn);
+  border: 1px solid color-mix(in srgb, var(--in-warn) 40%, transparent);
+  background: color-mix(in srgb, var(--in-warn) 9%, transparent);
+}
+.in-flag.hot {
+  color: var(--in-over); border-color: color-mix(in srgb, var(--in-over) 45%, transparent);
+  background: color-mix(in srgb, var(--in-over) 11%, transparent);
+}
+.in-ok {
+  font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--in-good); background: color-mix(in srgb, var(--in-good) 7%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--in-good) 25%, transparent); border-radius: 10px; padding: 10px 12px;
+}
+
+.in-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; display: flex; flex-direction: column; gap: 11px; }
+.in-sec-lbl { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--text-sub); }
+.in-row { display: flex; flex-direction: column; gap: 5px; }
+.in-row-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.in-row-lbl { font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.in-row-val { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.in-row-val em { font-style: normal; color: var(--text-sub); }
+.in-tag { font-family: 'DM Mono', monospace; font-size: 7.5px; letter-spacing: .14em; text-transform: uppercase; padding: 2px 5px; border-radius: 3px; }
+.state-over .in-tag { color: var(--in-over); border: 1px solid color-mix(in srgb, var(--in-over) 45%, transparent); }
+.state-warn .in-tag { color: var(--in-warn); border: 1px solid color-mix(in srgb, var(--in-warn) 45%, transparent); }
+.state-met  .in-tag { color: var(--in-good); border: 1px solid color-mix(in srgb, var(--in-good) 40%, transparent); }
+.in-info { font-family: 'DM Mono', monospace; font-size: 9.5px; color: var(--text-sub); letter-spacing: .05em; line-height: 1.6; }
+
+.in-log-hd { display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px; }
+.in-entry {
+  display: flex; gap: 12px; align-items: flex-start; padding: 11px 14px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 11px; cursor: pointer; width: 100%; text-align: left;
+  font: inherit; color: inherit;
+}
+.in-entry:active { border-color: var(--border-md); }
+.in-entries { display: flex; flex-direction: column; gap: 6px; }
+.in-entry-main { flex: 1; min-width: 0; }
+.in-entry-name { font-size: 14px; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.in-entry-meta { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .05em; color: var(--text-sub); margin-top: 3px; line-height: 1.5; }
+.in-src { color: var(--in-acc); letter-spacing: .12em; }
+.in-entry .in-flags { margin-top: 6px; justify-content: flex-start; }
+.in-entry-kcal { text-align: right; flex-shrink: 0; }
+.in-entry-kcal b { font-family: 'Bebas Neue', cursive; font-size: 23px; font-weight: 400; color: var(--text); line-height: 1; display: block; font-variant-numeric: tabular-nums; }
+.in-entry-kcal span { font-family: 'DM Mono', monospace; font-size: 8.5px; color: var(--text-sub); letter-spacing: .06em; }
+.in-empty {
+  text-align: center; padding: 22px 16px; font-family: 'DM Mono', monospace; font-size: 9.5px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--text-sub); line-height: 1.8;
+  border: 1px dashed var(--border-md); border-radius: 12px; white-space: pre-line;
+}
+
+/* intake sheet */
+.in-sheet { max-height: 88vh; overflow-y: auto; padding-bottom: calc(14px + var(--safe-b)); }
+.in-sheet .sheet-title { color: var(--in-acc); }
+/* Pin the confirm button too — on leg days --day-color is rust, which reads as a warning here. */
+.in-sheet .btn-confirm { background: var(--in-acc); }
+.in-sheet .ef-inp:focus { border-color: var(--in-acc); }
+.in-sheet-note { font-size: 12.5px; color: var(--text-sub); margin: -6px 0 14px; line-height: 1.5; }
+.in-item { border: 1px solid var(--border-md); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: #12100E; }
+.in-item-hd { display: flex; gap: 8px; align-items: center; }
+.in-item-x { background: none; border: none; color: var(--text-sub); font-size: 15px; padding: 6px; cursor: pointer; flex-shrink: 0; }
+.in-srv { display: flex; align-items: flex-end; gap: 8px; margin: 9px 0 12px; }
+.in-srv .ef-col { flex: 1; min-width: 0; }
+.in-step { display: flex; align-items: center; border: 1px solid var(--border-md); border-radius: 7px; overflow: hidden; background: var(--bg); flex-shrink: 0; }
+.in-step button { width: 30px; height: 31px; background: none; border: none; color: var(--text); font-size: 16px; cursor: pointer; }
+.in-step input { width: 40px; text-align: center; background: none; border: none; color: var(--text); font-family: 'DM Mono', monospace; font-size: 12px; outline: none; padding: 0; }
+.in-live { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .08em; color: var(--in-acc); text-align: right; margin: -4px 0 9px; font-variant-numeric: tabular-nums; }
+.in-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 7px; }
+.in-grid .ef-lbl { letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.in-grid .ef-inp { padding: 7px 6px; text-align: center; }
+.in-grid .hl .ef-inp { border-color: color-mix(in srgb, var(--in-acc) 35%, var(--border-md)); }
+.in-textarea { min-height: 96px; resize: vertical; line-height: 1.45; font-size: 14px; }
+.in-add-item {
+  width: 100%; padding: 10px; border: 1px dashed var(--border-md); background: none; border-radius: 9px;
+  color: var(--text-sub); font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: .14em;
+  text-transform: uppercase; cursor: pointer;
+}
+.in-loading { text-align: center; padding: 10px 0 4px; }
+.in-thumb { width: 132px; height: 132px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border-md); margin: 0 auto 14px; display: block; }
+.in-spin { width: 26px; height: 26px; border: 2px solid var(--border-md); border-top-color: var(--in-acc); border-radius: 50%; margin: 4px auto 12px; animation: inspin .8s linear infinite; }
+@keyframes inspin { to { transform: rotate(360deg); } }
+.in-loading-txt { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-sub); }
+.in-err { color: var(--text); font-size: 13.5px; line-height: 1.55; margin-bottom: 4px; }
+.in-sheet .sheet-actions { flex-wrap: wrap; }
+.in-sheet .btn-del { flex: 1; }
+.in-tgt-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 10px; }
+.in-tgt-grid .ef-inp { text-align: right; }
+.in-link { background: none; border: none; color: var(--text-sub); font-family: 'DM Mono', monospace; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; padding: 8px 0 0; text-decoration: underline; text-underline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .in-spin { animation-duration: 2.4s; }
+  .in-bar i, .in-add-btn { transition: none; }
+}
+
 /* ── WEIGHT CALCULATOR ───────────────────────────── */
 .calc-lbl { font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--text-sub); margin-bottom: 6px; }
 .calc-week-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -996,6 +1180,8 @@ body::after {
 
   <div id="mealView"></div>
 
+  <div id="intakeView"></div>
+
   <div id="coachView"></div>
 
   <nav class="bottom-nav" id="bottomNav">
@@ -1006,6 +1192,10 @@ body::after {
     <button class="nav-tab" data-tab="meal">
       <span class="tab-icon">🥗</span>
       <span class="tab-label">Meal</span>
+    </button>
+    <button class="nav-tab" data-tab="intake">
+      <span class="tab-icon">🍽️</span>
+      <span class="tab-label">Intake</span>
     </button>
     <button class="nav-tab" data-tab="history">
       <span class="tab-icon">📊</span>
@@ -1052,6 +1242,13 @@ body::after {
     </div>
   </div>
 </div>
+
+<!-- Intake sheet: describe / reading / review / targets -->
+<div class="overlay" id="intakeOverlay">
+  <div class="sheet in-sheet" id="intakeSheet" role="dialog" aria-modal="true"></div>
+</div>
+<!-- No `capture` attribute: without it phones offer both "Take Photo" and the photo library. -->
+<input type="file" id="intakeFile" accept="image/*" hidden>
 
 <!-- Reset dialog -->
 <div class="dialog-wrap" id="resetDialog">
@@ -1324,7 +1521,7 @@ const EXERCISE_MUSCLES = {
 //  STATE + STORAGE
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v1.3';
+const APP_VERSION = 'v1.4';
 
 // YYYY-MM-DD in the user's OWN timezone. Never use toISOString() for date keys —
 // it converts to UTC, so evenings west of UTC would log under tomorrow's date.
@@ -2373,6 +2570,788 @@ document.getElementById('mealView').addEventListener('click', e => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+//  INTAKE (daily food log · label scanning · limit flags)
+// ═══════════════════════════════════════════════════════════════
+
+// Groq model that reads label photos and estimates described meals: vision + JSON mode.
+// Checked against console.groq.com/docs in Sep 2026 — Llama 4 Scout and Maverick are shut down.
+const INTAKE_MODEL         = 'qwen/qwen3.8-27b';
+const INTAKE_STORE         = 'wt-intake';
+const INTAKE_TARGETS_STORE = 'wt-intake-targets';
+
+// kind: 'target' aim for it, flag when well over · 'min' reach at least · 'limit' stay under
+//       'avoid' any amount is flagged · 'info' shown, never flagged
+// Cholesterol is info-only: current US Dietary Guidelines dropped the numeric cap, and
+// flagging it would mark the 4-egg breakfast in MEAL_PLAN as something to cut every day.
+const NUTRIENTS = [
+  { k:'kcal',        label:'Calories',    short:'Kcal',      unit:'kcal', kind:'target' },
+  { k:'protein',     label:'Protein',     short:'Protein g', unit:'g',    kind:'min'    },
+  { k:'carbs',       label:'Carbs',       short:'Carbs g',   unit:'g',    kind:'target' },
+  { k:'fat',         label:'Fat',         short:'Fat g',     unit:'g',    kind:'target' },
+  { k:'sodium',      label:'Sodium',      short:'Sodium mg', unit:'mg',   kind:'limit'  },
+  { k:'addedSugar',  label:'Added sugar', short:'Add. sug g',unit:'g',    kind:'limit'  },
+  { k:'satFat',      label:'Sat. fat',    short:'Sat fat g', unit:'g',    kind:'limit'  },
+  { k:'fiber',       label:'Fiber',       short:'Fiber g',   unit:'g',    kind:'min'    },
+  { k:'sugar',       label:'Total sugar', short:'Sugar g',   unit:'g',    kind:'info'   },
+  { k:'transFat',    label:'Trans fat',   short:'Trans g',   unit:'g',    kind:'avoid'  },
+  { k:'cholesterol', label:'Cholesterol', short:'Chol. mg',  unit:'mg',   kind:'info'   },
+];
+const TARGET_OVER = 1.10;  // 'target' nutrients flag once 10% past the goal
+const LIMIT_WARN  = 0.80;  // 'limit' bars turn amber at 80% of the limit
+const ITEM_HIGH   = 0.20;  // FDA label rule: 20%+ of the daily value in one food is "high"
+const ITEM_HOT    = 0.50;  // half a day's limit in one food gets the red chip
+
+let intakeOffset    = 0;   // 0 = today, -1 = yesterday, …
+let inRecentCache   = [];
+let inDraft         = null;
+
+function mk(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function intakeDefaults() {
+  // Macros are summed from MEAL_PLAN so this tab and the Meal tab always agree.
+  // Limits are the FDA daily values printed on every US nutrition label.
+  const sum = k => MEAL_PLAN.reduce((a, m) => a + (m[k] || 0), 0);
+  return { kcal: sum('kcal'), protein: sum('protein'), carbs: sum('carbs'), fat: sum('fat'),
+           fiber: 28, sodium: 2300, addedSugar: 50, satFat: 20 };
+}
+function intakeTargets() { return Object.assign(intakeDefaults(), lsGet(INTAKE_TARGETS_STORE) || {}); }
+
+function intakeDate() {
+  const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + intakeOffset);
+  return d;
+}
+function intakeDateStr() { return isoLocal(intakeDate()); }
+function intakeAll()     { return lsGet(INTAKE_STORE) || {}; }
+function intakeDay(ds)   { return intakeAll()[ds] || []; }
+function intakeSaveDay(ds, entries) {
+  const all = intakeAll();
+  if (entries.length) all[ds] = entries; else delete all[ds];
+  lsSet(INTAKE_STORE, all);
+  scheduleSyncToGist();
+}
+
+// What was actually eaten: per-serving values × servings. Missing values count as 0.
+function eaten(entry) {
+  const out = {}, s = entry.servings > 0 ? entry.servings : 1;
+  NUTRIENTS.forEach(({ k }) => {
+    const v = entry.n && entry.n[k];
+    out[k] = (typeof v === 'number' && isFinite(v)) ? v * s : 0;
+  });
+  return out;
+}
+function dayTotals(entries) {
+  const t = Object.fromEntries(NUTRIENTS.map(({ k }) => [k, 0]));
+  entries.forEach(e => { const x = eaten(e); NUTRIENTS.forEach(({ k }) => { t[k] += x[k]; }); });
+  return t;
+}
+function nutrientState(n, total, target) {
+  if (!(target > 0)) return 'ok';
+  const r = total / target;
+  if (n.kind === 'limit')  return r >= 1 ? 'over' : r >= LIMIT_WARN ? 'warn' : 'ok';
+  if (n.kind === 'target') return r > TARGET_OVER ? 'over' : r >= 0.9 ? 'met' : 'ok';
+  if (n.kind === 'min')    return r >= 1 ? 'met' : 'ok';
+  return 'ok';
+}
+// Foods to eat less of: one item carrying ≥20% of a daily limit, or any trans fat.
+function itemFlags(entry, targets) {
+  const x = eaten(entry), flags = [];
+  NUTRIENTS.forEach(n => {
+    if (n.kind === 'limit' && targets[n.k] > 0) {
+      const pct = x[n.k] / targets[n.k];
+      if (pct >= ITEM_HIGH) flags.push({ k: n.k, pct, hot: pct >= ITEM_HOT, text: n.label + ' ' + Math.round(pct * 100) + '%' });
+    }
+    if (n.kind === 'avoid' && x[n.k] > 0) flags.push({ k: n.k, pct: 99, hot: true, text: 'Trans fat · avoid' });
+  });
+  return flags.sort((a, b) => b.pct - a.pct);
+}
+
+function fmtN(v, unit) {
+  const r = (unit === 'g') ? Math.round(v * 10) / 10 : Math.round(v);
+  return r.toLocaleString() + (unit === 'kcal' ? '' : unit);
+}
+function fmtServings(s) { return (Math.round(s * 100) / 100).toString(); }
+
+function intakeRecent(limit) {
+  const all = intakeAll(), seen = new Set(), out = [];
+  Object.keys(all).sort().reverse().slice(0, 21).forEach(ds => {
+    (all[ds] || []).slice().reverse().forEach(e => {
+      const k = (e.name || '').trim().toLowerCase();
+      if (!k || seen.has(k) || out.length >= limit) return;
+      seen.add(k); out.push(e);
+    });
+  });
+  return out;
+}
+
+// ─── main view ─────────────────────────────────────────────────
+
+function renderIntake() {
+  const c = document.getElementById('intakeView');
+  c.textContent = '';
+
+  const ds = intakeDateStr(), entries = intakeDay(ds), targets = intakeTargets();
+  const tot = dayTotals(entries), hasKey = !!coachGetKey();
+
+  // header
+  const hdr = mk('div', 'in-hdr');
+  const hl = mk('div');
+  hl.appendChild(mk('div', 'meal-title', 'INTAKE'));
+  hdr.appendChild(hl);
+  const gear = mk('button', 'in-gear', 'Targets'); gear.dataset.act = 'targets';
+  hdr.appendChild(gear);
+  c.appendChild(hdr);
+
+  // date stepper
+  const dateRow = mk('div', 'in-date');
+  const prev = mk('button', '', '‹'); prev.dataset.act = 'prev'; prev.setAttribute('aria-label', 'Previous day');
+  const next = mk('button', '', '›'); next.dataset.act = 'next'; next.setAttribute('aria-label', 'Next day');
+  next.disabled = intakeOffset >= 0;
+  const d = intakeDate();
+  const lbl = mk('div', 'in-date-lbl');
+  const when = intakeOffset === 0 ? 'Today' : intakeOffset === -1 ? 'Yesterday' : DAYS_S[d.getDay()];
+  lbl.appendChild(mk('b', '', when));
+  lbl.appendChild(document.createTextNode(' · ' + MONTHS_S[d.getMonth()] + ' ' + d.getDate()));
+  dateRow.appendChild(prev); dateRow.appendChild(lbl); dateRow.appendChild(next);
+  c.appendChild(dateRow);
+
+  // calories hero
+  const kState = nutrientState(NUTRIENTS[0], tot.kcal, targets.kcal);
+  const hero = mk('div', 'in-hero state-' + kState);
+  const num = mk('div', 'in-hero-num', fmtN(tot.kcal, 'kcal'));
+  num.appendChild(mk('span', '', '/ ' + fmtN(targets.kcal, 'kcal')));
+  hero.appendChild(num);
+  const left = targets.kcal - tot.kcal;
+  const sub = mk('div', 'in-hero-sub', 'Calories · ');
+  sub.appendChild(mk('b', '', left >= 0 ? fmtN(left, 'kcal') + ' left' : fmtN(-left, 'kcal') + ' over'));
+  hero.appendChild(sub);
+  hero.appendChild(bar(tot.kcal, targets.kcal));
+  c.appendChild(hero);
+
+  // add actions
+  const add = mk('div', 'in-add');
+  [['scan', '📷', 'Scan label', true], ['describe', '✎', 'Describe', true], ['manual', '＋', 'Manual', false]]
+    .forEach(([act, ico, text, needsKey]) => {
+      const b = mk('button', 'in-add-btn' + (act === 'scan' ? ' primary' : '') + (needsKey && !hasKey ? ' locked' : ''));
+      b.dataset.act = act;
+      b.appendChild(mk('span', 'ico', ico)); b.appendChild(mk('span', '', text));
+      add.appendChild(b);
+    });
+  c.appendChild(add);
+  if (!hasKey) c.appendChild(mk('div', 'in-note', 'Scanning and estimating use your Groq key — add it in the Coach tab. Manual entry works without one.'));
+
+  inRecentCache = intakeRecent(8);
+  if (inRecentCache.length) {
+    const rec = mk('div', 'in-recent');
+    inRecentCache.forEach((e, i) => {
+      const chip = mk('button', 'in-chip', e.name); chip.dataset.recent = String(i);
+      rec.appendChild(chip);
+    });
+    c.appendChild(rec);
+  }
+
+  // alerts — the two things this tab exists to answer
+  if (entries.length) renderIntakeAlerts(c, entries, tot, targets);
+
+  // macros + limits
+  const macros = mk('div', 'in-card');
+  macros.appendChild(mk('div', 'in-sec-lbl', 'Macros'));
+  ['protein', 'carbs', 'fat', 'fiber'].forEach(k => macros.appendChild(nutRow(NUTRIENTS.find(n => n.k === k), tot, targets)));
+  c.appendChild(macros);
+
+  const limits = mk('div', 'in-card');
+  limits.appendChild(mk('div', 'in-sec-lbl', 'Limits'));
+  ['sodium', 'addedSugar', 'satFat'].forEach(k => limits.appendChild(nutRow(NUTRIENTS.find(n => n.k === k), tot, targets)));
+  limits.appendChild(mk('div', 'in-info',
+    'Total sugar ' + fmtN(tot.sugar, 'g') + ' · Cholesterol ' + fmtN(tot.cholesterol, 'mg') +
+    (tot.transFat > 0 ? ' · Trans fat ' + fmtN(tot.transFat, 'g') : '')));
+  c.appendChild(limits);
+
+  // log
+  const logHd = mk('div', 'in-log-hd');
+  logHd.appendChild(mk('div', 'in-sec-lbl', 'Log' + (entries.length ? ' · ' + entries.length + ' item' + (entries.length === 1 ? '' : 's') : '')));
+  c.appendChild(logHd);
+  if (!entries.length) {
+    c.appendChild(mk('div', 'in-empty', 'Nothing logged ' + (intakeOffset === 0 ? 'yet today' : 'for this day') + '.\nScan a label or describe what you ate.'));
+  } else {
+    const list = mk('div', 'in-entries');
+    entries.slice().reverse().forEach(e => list.appendChild(entryRow(e, targets)));
+    c.appendChild(list);
+  }
+}
+
+function bar(val, target) {
+  const b = mk('div', 'in-bar'), i = mk('i');
+  i.style.width = (target > 0 ? Math.min(100, (val / target) * 100) : 0) + '%';
+  b.appendChild(i);
+  return b;
+}
+
+function nutRow(n, tot, targets) {
+  const state = nutrientState(n, tot[n.k], targets[n.k]);
+  const row = mk('div', 'in-row state-' + state);
+  const top = mk('div', 'in-row-top');
+  const l = mk('div', 'in-row-lbl', n.label);
+  const tagText = { over: n.kind === 'limit' ? 'Over limit' : 'Over', warn: 'Near limit', met: n.kind === 'min' ? 'Hit' : 'On target' }[state];
+  if (tagText) l.appendChild(mk('span', 'in-tag', tagText));
+  const v = mk('div', 'in-row-val', fmtN(tot[n.k], n.unit) + ' ');
+  v.appendChild(mk('em', '', '/ ' + fmtN(targets[n.k], n.unit)));
+  top.appendChild(l); top.appendChild(v);
+  row.appendChild(top);
+  row.appendChild(bar(tot[n.k], targets[n.k]));
+  return row;
+}
+
+function renderIntakeAlerts(c, entries, tot, targets) {
+  // 1. What you're taking in too much of today, with the foods responsible.
+  // Worst offender first.
+  const over = NUTRIENTS.filter(n =>
+    (n.kind === 'limit' || n.kind === 'target') && nutrientState(n, tot[n.k], targets[n.k]) === 'over')
+    .sort((a, b) => tot[b.k] / targets[b.k] - tot[a.k] / targets[a.k]);
+
+  // 2. Which foods to eat less of / avoid — merged by name, strongest hit wins.
+  const byName = new Map();
+  entries.forEach(e => {
+    const f = itemFlags(e, targets);
+    if (!f.length) return;
+    const key = (e.name || '').trim().toLowerCase();
+    const cur = byName.get(key) || { name: e.name, flags: new Map() };
+    f.forEach(fl => { const had = cur.flags.get(fl.k); if (!had || fl.pct > had.pct) cur.flags.set(fl.k, fl); });
+    byName.set(key, cur);
+  });
+  const flagged = [...byName.values()]
+    .map(x => ({ name: x.name, flags: [...x.flags.values()].sort((a, b) => b.pct - a.pct) }))
+    .sort((a, b) => b.flags[0].pct - a.flags[0].pct);
+
+  if (!over.length && !flagged.length) {
+    c.appendChild(mk('div', 'in-ok', '✓ Nothing over your limits so far'));
+    return;
+  }
+
+  if (over.length) {
+    const box = mk('div', 'in-alert');
+    box.appendChild(mk('div', 'in-alert-hd', 'Too much today'));
+    over.forEach(n => {
+      const row = mk('div', 'in-over-row');
+      const top = mk('div', 'in-over-top', n.label);
+      top.appendChild(mk('span', 'in-over-amt',
+        fmtN(tot[n.k], n.unit) + ' / ' + fmtN(targets[n.k], n.unit) + ' · +' + fmtN(tot[n.k] - targets[n.k], n.unit)));
+      row.appendChild(top);
+      const sources = entries.map(e => ({ name: e.name, v: eaten(e)[n.k] }))
+        .filter(s => s.v > 0).sort((a, b) => b.v - a.v).slice(0, 3);
+      if (sources.length) {
+        const src = mk('div', 'in-over-src', 'Mostly from ');
+        sources.forEach((s, i) => {
+          if (i) src.appendChild(document.createTextNode(' · '));
+          src.appendChild(mk('b', '', s.name));
+          src.appendChild(document.createTextNode(' ' + fmtN(s.v, n.unit)));
+        });
+        row.appendChild(src);
+      }
+      box.appendChild(row);
+    });
+    c.appendChild(box);
+  }
+
+  if (flagged.length) {
+    const box = mk('div', 'in-alert' + (over.length ? '' : ' avoid-only'));
+    box.appendChild(mk('div', 'in-alert-hd', 'Eat less of / avoid'));
+    box.appendChild(mk('div', 'in-alert-sub', 'Foods carrying 20%+ of a daily limit in one go — the FDA’s line for “high”.'));
+    flagged.forEach(f => {
+      const row = mk('div', 'in-avoid-row');
+      row.appendChild(mk('div', 'in-avoid-name', f.name));
+      const chips = mk('div', 'in-flags');
+      f.flags.forEach(fl => chips.appendChild(mk('span', 'in-flag' + (fl.hot ? ' hot' : ''), fl.text)));
+      row.appendChild(chips);
+      box.appendChild(row);
+    });
+    c.appendChild(box);
+  }
+}
+
+function entryRow(e, targets) {
+  const row = mk('button', 'in-entry'); row.dataset.entry = e.id;
+  const main = mk('div', 'in-entry-main');
+  main.appendChild(mk('div', 'in-entry-name', e.name));
+  const x = eaten(e);
+  const meta = mk('div', 'in-entry-meta');
+  meta.appendChild(mk('span', 'in-src', ({ label: 'LABEL', ai: 'EST.', manual: 'MANUAL' })[e.src] || 'MANUAL'));
+  const parts = [];
+  const sv = e.servings > 0 ? e.servings : 1;
+  if (sv !== 1) parts.push(fmtServings(sv) + ' × ' + (e.serving || 'serving'));
+  else if (e.serving) parts.push(e.serving);
+  parts.push('P ' + Math.round(x.protein) + ' · C ' + Math.round(x.carbs) + ' · F ' + Math.round(x.fat));
+  if (intakeOffset === 0 && e.t) {
+    parts.push(new Date(e.t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s/g, ' '));
+  }
+  meta.appendChild(document.createTextNode(' · ' + parts.join(' · ')));
+  main.appendChild(meta);
+  const flags = itemFlags(e, targets);
+  if (flags.length) {
+    const chips = mk('div', 'in-flags');
+    flags.forEach(fl => chips.appendChild(mk('span', 'in-flag' + (fl.hot ? ' hot' : ''), fl.text)));
+    main.appendChild(chips);
+  }
+  const k = mk('div', 'in-entry-kcal');
+  k.appendChild(mk('b', '', fmtN(x.kcal, 'kcal')));
+  k.appendChild(mk('span', '', 'KCAL'));
+  row.appendChild(main); row.appendChild(k);
+  return row;
+}
+
+document.getElementById('intakeView').addEventListener('click', e => {
+  const a = e.target.closest('[data-act]');
+  if (a) {
+    const act = a.dataset.act;
+    if (act === 'prev')     { intakeOffset -= 1; renderIntake(); }
+    if (act === 'next')     { if (intakeOffset < 0) { intakeOffset += 1; renderIntake(); } }
+    if (act === 'scan')     inStartScan();
+    if (act === 'describe') { if (!coachGetKey()) return inNeedKey(); inOpen({ mode: 'describe', src: 'ai', date: intakeDateStr(), text: '' }); }
+    if (act === 'manual')   inOpen({ mode: 'review', src: 'manual', date: intakeDateStr(), items: [blankItem()] });
+    if (act === 'targets')  inOpen({ mode: 'targets' });
+    return;
+  }
+  const r = e.target.closest('[data-recent]');
+  if (r) {
+    const src = inRecentCache[+r.dataset.recent]; if (!src) return;
+    inOpen({ mode: 'review', src: src.src || 'manual', date: intakeDateStr(),
+             items: [{ name: src.name, serving: src.serving || '', servings: src.servings || 1, n: Object.assign({}, src.n), src: src.src }] });
+    return;
+  }
+  const row = e.target.closest('[data-entry]');
+  if (row) {
+    const ds = intakeDateStr(), ent = intakeDay(ds).find(x => x.id === row.dataset.entry);
+    if (ent) inOpen({ mode: 'review', src: ent.src, date: ds, editId: ent.id, items: [JSON.parse(JSON.stringify(ent))] });
+  }
+});
+
+// ─── AI: read a label photo / estimate a described meal ────────
+
+function fileToJpegDataUrl(file, maxSide = 1600, quality = 0.85) {
+  // Phone photos are 3–12MB. Downscale so the upload is ~0.5MB and fast on cell data,
+  // while keeping label text legible.
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(img.naturalWidth * s));
+      cv.height = Math.max(1, Math.round(img.naturalHeight * s));
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(url);
+      resolve(cv.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Couldn’t open that image. Try a different photo.')); };
+    img.src = url;
+  });
+}
+
+function parseJSONLoose(s) {
+  try { return JSON.parse(s); } catch (e) { /* fall through */ }
+  const a = s.indexOf('{'), b = s.lastIndexOf('}');
+  if (a >= 0 && b > a) { try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { /* fall through */ } }
+  throw new Error('Got an unreadable answer back. Try again.');
+}
+
+async function groqJSON(messages, signal) {
+  const key = coachGetKey();
+  if (!key) throw new Error('Add your Groq key in the Coach tab first.');
+  let res;
+  try {
+    res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST', signal,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: INTAKE_MODEL, messages,
+        temperature: 0.1,
+        max_completion_tokens: 1500,
+        response_format: { type: 'json_object' },
+        reasoning_effort: 'none',   // reading a label is recall, not reasoning — keeps it fast
+      }),
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') throw err;
+    throw new Error('No connection. Check your signal and try again.');
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    if (res.status === 401) throw new Error('Groq rejected your API key. Update it in the Coach tab.');
+    if (res.status === 429) throw new Error('Groq’s rate limit was hit. Wait a minute and try again.');
+    throw new Error((data && data.error && data.error.message) || ('Groq returned an error (' + res.status + ').'));
+  }
+  return parseJSONLoose((data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '');
+}
+
+const NUT_SCHEMA = '{"kcal":n,"protein":n,"carbs":n,"fat":n,"satFat":n,"transFat":n,"sugar":n,"addedSugar":n,"fiber":n,"sodium":n,"cholesterol":n}';
+
+function cleanNutrients(src, allowNull) {
+  const n = {};
+  NUTRIENTS.forEach(({ k }) => {
+    const raw = src ? src[k] : null;
+    const v = typeof raw === 'string' ? parseFloat(raw.replace(/[^0-9.]/g, '')) : raw;
+    n[k] = (typeof v === 'number' && isFinite(v) && v >= 0) ? Math.round(v * 10) / 10 : (allowNull ? null : 0);
+  });
+  return n;
+}
+function cleanText(v, max) { return (v == null ? '' : String(v)).replace(/\s+/g, ' ').trim().slice(0, max); }
+function blankItem() { return { name: '', serving: '', servings: 1, n: cleanNutrients({}, true) }; }
+
+async function aiReadLabel(dataUrl, signal) {
+  const out = await groqJSON([{ role: 'user', content: [
+    { type: 'text', text:
+      'Read the nutrition facts label in this photo. Reply with JSON only, in this shape:\n' +
+      '{"readable": true, "name": string, "serving": string, "per_serving": ' + NUT_SCHEMA + '}\n' +
+      'Rules:\n' +
+      '- Use the PER SERVING values. Never the per-container column, and never the %DV column.\n' +
+      '- If the label only gives values per 100g or 100ml, use those and set "serving" to "100g" or "100ml".\n' +
+      '- Units: kcal for calories; grams for protein, carbs, fat, satFat, transFat, sugar, addedSugar, fiber; milligrams for sodium and cholesterol.\n' +
+      '- "name": the product name if you can see it, otherwise a short description of the food.\n' +
+      '- "serving": the serving size exactly as printed, e.g. "2/3 cup (55g)".\n' +
+      '- Use null for anything not printed on the label. Do not guess missing values.\n' +
+      '- If this is not a nutrition label, or it is too blurry to read the numbers, reply {"readable": false}.' },
+    { type: 'image_url', image_url: { url: dataUrl } },
+  ]}], signal);
+  if (!out || out.readable === false || !out.per_serving) {
+    throw new Error('Couldn’t read a nutrition label in that photo. Try again with the label flat, filling the frame, in good light.');
+  }
+  return { name: cleanText(out.name, 80) || 'Scanned item', serving: cleanText(out.serving, 60),
+           servings: 1, n: cleanNutrients(out.per_serving, true) };
+}
+
+async function aiEstimate(text, signal) {
+  const out = await groqJSON([
+    { role: 'system', content:
+      'You estimate the nutrition of food someone describes eating. Reply with JSON only, in this shape:\n' +
+      '{"items": [{"name": string, "serving": string, "per_serving": ' + NUT_SCHEMA + '}]}\n' +
+      'Rules:\n' +
+      '- One item per distinct food or drink.\n' +
+      '- "serving" is the amount eaten as described (e.g. "2 large eggs"); per_serving is the nutrition for THAT whole amount.\n' +
+      '- If no amount is given, assume one typical portion and write it in "serving".\n' +
+      '- Base estimates on typical USDA values. For restaurant or fast food, use that chain\'s published values if you know them — restaurant sodium is usually far higher than home cooking.\n' +
+      '- Units: kcal; grams for macros, sugars, fiber and fats; milligrams for sodium and cholesterol.\n' +
+      '- Give a number for every field.' },
+    { role: 'user', content: text },
+  ], signal);
+  const items = out && Array.isArray(out.items) ? out.items : [];
+  if (!items.length) throw new Error('Couldn’t tell what that was. Try naming each food and roughly how much.');
+  return items.slice(0, 12).map(it => ({
+    name: cleanText(it.name, 80) || 'Food', serving: cleanText(it.serving, 60),
+    servings: 1, n: cleanNutrients(it.per_serving, false),
+  }));
+}
+
+function inNeedKey() {
+  inOpen({ mode: 'error', src: 'nokey', error:
+    'Scanning labels and estimating meals use your Groq API key — the same one the Coach uses. It’s free at console.groq.com.' });
+}
+
+function inStartScan() {
+  if (!coachGetKey()) { inNeedKey(); return; }
+  const f = document.getElementById('intakeFile');
+  f.value = '';
+  f.click();
+}
+
+document.getElementById('intakeFile').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const abort = new AbortController();
+  inOpen({ mode: 'loading', src: 'label', date: intakeDateStr(), abort });
+  try {
+    const dataUrl = await fileToJpegDataUrl(file);
+    if (!inDraft || inDraft.abort !== abort) return;         // cancelled while resizing
+    inDraft.thumb = dataUrl; renderIntakeSheet();
+    const item = await aiReadLabel(dataUrl, abort.signal);
+    if (!inDraft || inDraft.abort !== abort) return;
+    Object.assign(inDraft, { mode: 'review', items: [item], abort: null, thumb: null });
+    renderIntakeSheet();
+  } catch (err) {
+    if (err.name === 'AbortError' || !inDraft || inDraft.abort !== abort) return;
+    Object.assign(inDraft, { mode: 'error', error: err.message, abort: null, thumb: null });
+    renderIntakeSheet();
+  }
+});
+
+async function inRunEstimate(text) {
+  const abort = new AbortController();
+  Object.assign(inDraft, { mode: 'loading', text, abort });
+  renderIntakeSheet();
+  try {
+    const items = await aiEstimate(text, abort.signal);
+    if (!inDraft || inDraft.abort !== abort) return;
+    Object.assign(inDraft, { mode: 'review', items, abort: null });
+    renderIntakeSheet();
+  } catch (err) {
+    if (err.name === 'AbortError' || !inDraft || inDraft.abort !== abort) return;
+    Object.assign(inDraft, { mode: 'error', error: err.message, abort: null });
+    renderIntakeSheet();
+  }
+}
+
+// ─── sheet: describe · loading · error · review · targets ──────
+
+function inOpen(draft) {
+  inDraft = draft;
+  renderIntakeSheet();
+  document.getElementById('intakeOverlay').classList.add('open');
+}
+function inClose() {
+  if (inDraft && inDraft.abort) inDraft.abort.abort();
+  inDraft = null;
+  document.getElementById('intakeOverlay').classList.remove('open');
+}
+
+function sheetBtn(cls, text, act, i) {
+  const b = mk('button', cls, text); b.dataset.sa = act;
+  if (i != null) b.dataset.i = String(i);
+  return b;
+}
+
+function renderIntakeSheet() {
+  const s = document.getElementById('intakeSheet');
+  s.textContent = '';
+  const d = inDraft; if (!d) return;
+
+  const titles = {
+    describe: 'What did you eat?',
+    loading:  d.src === 'label' ? 'Reading label' : 'Estimating',
+    error:    d.src === 'nokey' ? 'Groq key needed' : 'That didn’t work',
+    review:   d.editId ? 'Edit food' : d.src === 'label' ? 'Check the label' : d.src === 'ai' ? 'Check the estimate' : 'Add food',
+    targets:  'Daily targets',
+  };
+  s.appendChild(mk('div', 'sheet-title', titles[d.mode]));
+  const actions = mk('div', 'sheet-actions');
+
+  if (d.mode === 'describe') {
+    s.appendChild(mk('div', 'in-sheet-note', 'Name each food and roughly how much — “2 scrambled eggs, slice of sourdough with butter” or “Chipotle chicken burrito bowl, white rice, black beans, cheese, guac”.'));
+    const ta = mk('textarea', 'ef-inp in-textarea'); ta.id = 'inDescribe';
+    ta.value = d.text || ''; ta.placeholder = 'e.g. turkey sandwich on wheat and a small bag of chips';
+    s.appendChild(ta);
+    actions.appendChild(sheetBtn('btn-cancel', 'Cancel', 'cancel'));
+    actions.appendChild(sheetBtn('btn-confirm', 'Estimate', 'estimate'));
+    s.appendChild(actions);
+    setTimeout(() => ta.focus(), 60);
+    return;
+  }
+
+  if (d.mode === 'loading') {
+    const box = mk('div', 'in-loading');
+    if (d.thumb) { const img = mk('img', 'in-thumb'); img.src = d.thumb; img.alt = ''; box.appendChild(img); }
+    box.appendChild(mk('div', 'in-spin'));
+    box.appendChild(mk('div', 'in-loading-txt', d.src === 'label' ? (d.thumb ? 'Reading the numbers…' : 'Preparing photo…') : 'Working out the nutrition…'));
+    s.appendChild(box);
+    actions.appendChild(sheetBtn('btn-cancel', 'Cancel', 'cancel'));
+    s.appendChild(actions);
+    return;
+  }
+
+  if (d.mode === 'error') {
+    s.appendChild(mk('div', 'in-err', d.error));
+    actions.appendChild(sheetBtn('btn-cancel', 'Cancel', 'cancel'));
+    if (d.src === 'nokey')  actions.appendChild(sheetBtn('btn-confirm', 'Go to Coach', 'coach'));
+    if (d.src === 'label')  actions.appendChild(sheetBtn('btn-confirm', 'Try another photo', 'rescan'));
+    if (d.src === 'ai')     actions.appendChild(sheetBtn('btn-confirm', 'Edit description', 'redescribe'));
+    s.appendChild(actions);
+    const man = sheetBtn('in-link', 'Enter it manually instead', 'manual');
+    s.appendChild(man);
+    return;
+  }
+
+  if (d.mode === 'targets') {
+    const t = intakeTargets(), def = intakeDefaults();
+    s.appendChild(mk('div', 'in-sheet-note', 'Calories and macros start from your meal plan. Sodium, added sugar, saturated fat and fiber start at the FDA daily values.'));
+    const grid = mk('div', 'in-tgt-grid');
+    ['kcal', 'protein', 'carbs', 'fat', 'fiber', 'sodium', 'addedSugar', 'satFat'].forEach(k => {
+      const n = NUTRIENTS.find(x => x.k === k);
+      const col = mk('label', 'ef-col');
+      col.appendChild(mk('span', 'ef-lbl', n.label + (n.unit === 'kcal' ? '' : ' (' + n.unit + ')') + (n.kind === 'limit' ? ' max' : n.kind === 'min' ? ' min' : '')));
+      const inp = mk('input', 'ef-inp mono'); inp.inputMode = 'numeric'; inp.dataset.tgt = k;
+      inp.value = String(t[k]); inp.placeholder = String(def[k]);
+      col.appendChild(inp); grid.appendChild(col);
+    });
+    s.appendChild(grid);
+    actions.style.marginTop = '16px';
+    actions.appendChild(sheetBtn('btn-cancel', 'Cancel', 'cancel'));
+    actions.appendChild(sheetBtn('btn-confirm', 'Save', 'tgt-save'));
+    s.appendChild(actions);
+    s.appendChild(sheetBtn('in-link', 'Reset all to plan defaults', 'tgt-reset'));
+    return;
+  }
+
+  // review
+  const notes = {
+    label:  'Read from your photo. Check the numbers match the label, then set how many servings you had.',
+    ai:     'These are estimates. Adjust anything that looks off — portion size matters most.',
+    manual: 'Enter what you know. Blank fields count as zero.',
+  };
+  if (!d.editId) s.appendChild(mk('div', 'in-sheet-note', notes[d.src] || notes.manual));
+  d.items.forEach((it, i) => s.appendChild(reviewItem(it, i, d.items.length > 1)));
+  if (!d.editId) s.appendChild(sheetBtn('in-add-item', '+ Add another food', 'add-item'));
+
+  if (d.editId) actions.appendChild(sheetBtn('btn-del', 'Delete', 'delete'));
+  actions.appendChild(sheetBtn('btn-cancel', 'Cancel', 'cancel'));
+  actions.appendChild(sheetBtn('btn-confirm', d.editId ? 'Save' : d.items.length > 1 ? 'Add ' + d.items.length + ' foods' : 'Add', 'commit'));
+  s.appendChild(actions);
+}
+
+function reviewItem(it, i, removable) {
+  const box = mk('div', 'in-item');
+  const hd = mk('div', 'in-item-hd');
+  const name = mk('input', 'ef-inp'); name.value = it.name || ''; name.placeholder = 'Food name';
+  name.dataset.f = 'name'; name.dataset.i = String(i);
+  hd.appendChild(name);
+  if (removable) { const x = sheetBtn('in-item-x', '✕', 'remove', i); x.setAttribute('aria-label', 'Remove'); hd.appendChild(x); }
+  box.appendChild(hd);
+
+  const srv = mk('div', 'in-srv');
+  const sc = mk('label', 'ef-col');
+  sc.appendChild(mk('span', 'ef-lbl', 'Serving size'));
+  const sv = mk('input', 'ef-inp'); sv.value = it.serving || ''; sv.placeholder = 'e.g. 1 cup (240ml)';
+  sv.dataset.f = 'serving'; sv.dataset.i = String(i);
+  sc.appendChild(sv); srv.appendChild(sc);
+  const stc = mk('div', 'ef-col'); stc.style.flex = '0 0 auto';
+  stc.appendChild(mk('span', 'ef-lbl', 'Servings'));
+  const step = mk('div', 'in-step');
+  step.appendChild(sheetBtn('', '−', 'step-', i));
+  const sn = mk('input'); sn.inputMode = 'decimal'; sn.value = fmtServings(it.servings || 1);
+  sn.dataset.f = 'servings'; sn.dataset.i = String(i); sn.setAttribute('aria-label', 'Servings');
+  step.appendChild(sn);
+  step.appendChild(sheetBtn('', '+', 'step+', i));
+  stc.appendChild(step); srv.appendChild(stc);
+  box.appendChild(srv);
+
+  const live = mk('div', 'in-live', liveText(it)); live.dataset.live = String(i);
+  box.appendChild(live);
+
+  box.appendChild(mk('div', 'ef-lbl', 'Per serving'));
+  box.lastChild.style.marginBottom = '6px';
+  const grid = mk('div', 'in-grid');
+  NUTRIENTS.forEach(n => {
+    const col = mk('label', 'ef-col' + (['kcal', 'protein', 'carbs', 'fat'].includes(n.k) ? ' hl' : ''));
+    col.appendChild(mk('span', 'ef-lbl', n.short));
+    const inp = mk('input', 'ef-inp mono'); inp.inputMode = 'decimal';
+    const v = it.n ? it.n[n.k] : null;
+    inp.value = v == null ? '' : String(v); inp.placeholder = '–';
+    inp.dataset.n = n.k; inp.dataset.i = String(i);
+    col.appendChild(inp); grid.appendChild(col);
+  });
+  box.appendChild(grid);
+  return box;
+}
+
+function liveText(it) {
+  const x = eaten(it);
+  return 'You ate ' + fmtN(x.kcal, 'kcal') + ' kcal · P ' + Math.round(x.protein) + ' · C ' + Math.round(x.carbs) + ' · F ' + Math.round(x.fat);
+}
+function updateLive(i) {
+  const it = inDraft && inDraft.items && inDraft.items[i];
+  const el = document.querySelector('#intakeSheet [data-live="' + i + '"]');
+  if (it && el) el.textContent = liveText(it);
+}
+
+function parseNum(v) {
+  const s = String(v).replace(',', '.').replace(/[^0-9.]/g, '');
+  if (s === '') return null;
+  const n = parseFloat(s);
+  return isFinite(n) && n >= 0 ? n : null;
+}
+
+document.getElementById('intakeOverlay').addEventListener('input', e => {
+  const t = e.target, d = inDraft; if (!d || !d.items) return;
+  const i = +t.dataset.i, it = d.items[i]; if (!it) return;
+  if (t.dataset.f === 'name')     it.name = t.value;
+  if (t.dataset.f === 'serving')  it.serving = t.value;
+  if (t.dataset.f === 'servings') { const v = parseNum(t.value); if (v) it.servings = v; }
+  if (t.dataset.n) { it.n = it.n || {}; it.n[t.dataset.n] = parseNum(t.value); }
+  updateLive(i);
+});
+
+document.getElementById('intakeOverlay').addEventListener('click', e => {
+  if (e.target.id === 'intakeOverlay') { inClose(); return; }
+  const b = e.target.closest('[data-sa]'); if (!b) return;
+  const d = inDraft; if (!d) return;
+  const act = b.dataset.sa, i = b.dataset.i != null ? +b.dataset.i : -1;
+
+  if (act === 'cancel') { inClose(); return; }
+  if (act === 'coach')  { inClose(); document.querySelector('[data-tab="coach"]').click(); return; }
+  if (act === 'rescan') { inClose(); inStartScan(); return; }
+  if (act === 'redescribe') { Object.assign(d, { mode: 'describe', error: null }); renderIntakeSheet(); return; }
+  if (act === 'manual') { Object.assign(d, { mode: 'review', src: 'manual', items: [blankItem()], error: null, date: d.date || intakeDateStr() }); renderIntakeSheet(); return; }
+
+  if (act === 'estimate') {
+    const ta = document.getElementById('inDescribe'), text = ta ? ta.value.trim() : '';
+    if (!text) { ta && ta.focus(); return; }
+    inRunEstimate(text);
+    return;
+  }
+
+  if (act === 'step-' || act === 'step+') {
+    const it = d.items[i]; if (!it) return;
+    const cur = it.servings || 1;
+    it.servings = act === 'step+' ? Math.round((cur + 0.5) * 100) / 100
+                                  : Math.max(0.25, Math.round((cur - 0.5) * 100) / 100);
+    const inp = document.querySelector('#intakeSheet input[data-f="servings"][data-i="' + i + '"]');
+    if (inp) inp.value = fmtServings(it.servings);
+    updateLive(i);
+    return;
+  }
+  if (act === 'remove')   { d.items.splice(i, 1); renderIntakeSheet(); return; }
+  if (act === 'add-item') { d.items.push(blankItem()); renderIntakeSheet(); return; }
+
+  if (act === 'delete') {
+    if (!confirm('Delete this food from your log?')) return;
+    intakeSaveDay(d.date, intakeDay(d.date).filter(x => x.id !== d.editId));
+    inClose(); renderIntake();
+    return;
+  }
+
+  if (act === 'commit') {
+    const now = new Date().toISOString();
+    const clean = d.items.map((it, k) => ({
+      id: it.id || ('f' + Date.now().toString(36) + k),
+      t: it.t || now,
+      src: it.src || d.src || 'manual',
+      name: cleanText(it.name, 80) || 'Food',
+      serving: cleanText(it.serving, 60),
+      servings: it.servings > 0 ? it.servings : 1,
+      n: cleanNutrients(it.n, true),
+    }));
+    const entries = intakeDay(d.date);
+    if (d.editId) {
+      const idx = entries.findIndex(x => x.id === d.editId);
+      if (idx >= 0) entries[idx] = Object.assign(clean[0], { id: d.editId }); else entries.push(clean[0]);
+    } else {
+      entries.push(...clean);
+    }
+    intakeSaveDay(d.date, entries);
+    inClose(); renderIntake();
+    return;
+  }
+
+  if (act === 'tgt-save') {
+    const def = intakeDefaults(), out = {};
+    document.querySelectorAll('#intakeSheet [data-tgt]').forEach(inp => {
+      const v = parseNum(inp.value), k = inp.dataset.tgt;
+      if (v != null && v > 0 && v !== def[k]) out[k] = v;   // only store what differs from the plan
+    });
+    lsSet(INTAKE_TARGETS_STORE, out);
+    scheduleSyncToGist();
+    inClose(); renderIntake();
+    return;
+  }
+  if (act === 'tgt-reset') {
+    lsSet(INTAKE_TARGETS_STORE, {});
+    scheduleSyncToGist();
+    renderIntakeSheet();
+    return;
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
 //  GITHUB GIST SYNC
 // ═══════════════════════════════════════════════════════════════
 
@@ -2380,7 +3359,7 @@ const GIST_TOKEN_KEY = 'wt-gh-token';
 const GIST_ID_KEY    = 'wt-gh-gist-id';
 const GIST_SYNC_KEY  = 'wt-gh-last-sync';
 const GIST_FILENAME  = 'workout-data.json';
-const SYNC_KEYS = ['wt-plans','wt-done','wt-nextid','wt-history','wt-grocery','wt-calc-week','wt-calc-starts','wt-coach-sessions'];
+const SYNC_KEYS = ['wt-plans','wt-done','wt-nextid','wt-history','wt-grocery','wt-calc-week','wt-calc-starts','wt-coach-sessions','wt-intake','wt-intake-targets'];
 
 let syncTimer = null;
 
@@ -2719,6 +3698,7 @@ document.getElementById('bottomNav').addEventListener('click', e => {
   const histView     = document.getElementById('historyView');
   const mealViewEl   = document.getElementById('mealView');
   const coachViewEl  = document.getElementById('coachView');
+  const intakeViewEl = document.getElementById('intakeView');
   const stickyShell  = document.querySelector('.sticky-shell');
 
   // hide everything first
@@ -2727,6 +3707,7 @@ document.getElementById('bottomNav').addEventListener('click', e => {
   histView.classList.remove('show');
   mealViewEl.classList.remove('show');
   coachViewEl.classList.remove('show');
+  intakeViewEl.classList.remove('show');
   stickyShell.style.display = 'none';
 
   if (t === 'history') {
@@ -2735,6 +3716,10 @@ document.getElementById('bottomNav').addEventListener('click', e => {
   } else if (t === 'meal') {
     mealViewEl.classList.add('show');
     renderMeal();
+  } else if (t === 'intake') {
+    intakeViewEl.classList.add('show');
+    intakeOffset = 0;   // always open on today
+    renderIntake();
   } else if (t === 'coach') {
     coachViewEl.classList.add('show');
     renderCoach();
