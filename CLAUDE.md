@@ -16,6 +16,9 @@ that is a guess must never look like a fact. So:
   weight. The calculator, the Train cards and the Coach all call it.
 - The Coach is told the plan's targets and reasons and must explain them, not
   invent numbers. It only talks; it has no path to change data.
+- Intake targets come from `bodyPlanFor()` (weight, body fat, goal) or, without
+  a weight, from `MEAL_PLAN`. Same pattern: every number with its reason, and a
+  number the user typed wins until they reset it.
 - Intake flags come from fixed thresholds (FDA daily values, 20% = "high"), not
   from the model. The model only reads labels and estimates meals, and every
   result goes through a review sheet before it is saved, tagged `LABEL`/`EST.`.
