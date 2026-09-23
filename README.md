@@ -13,6 +13,7 @@ Five tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
 ### 🏋️ Train
 - **Day-based workout plan** — each day has its own exercises (built around a RECOMP 18-month plan)
 - **Set tracker** — tap to log sets and reps as you complete them; visual progress bar shows completed vs. planned
+- **Plan targets, with the reason** — each lift shows this week's target from the 12-week plan and why: your start weight, the phase, the steps added, or what a deload is 65% of. Tap **Use** to take it
 - **Rest timer** — starts automatically after logging a set; flashes when rest is over
 - **Add / reset exercises** — FAB buttons to add a custom exercise or reset the day
 - **Workout complete banner** — fires when all exercises are done
@@ -35,9 +36,11 @@ Five tabs, all stored in `localStorage` and optionally synced to a GitHub Gist:
 - **Workout log** — scrollable history of every session stored locally
 - **Strength charts** — per-exercise volume/rep history over time
 - **Gist sync status** — shows last sync time and lets you trigger a manual sync
+- **What's new** — release notes for every version; a dot on the History tab means there's something you haven't seen
 
 ### 🤖 Coach
 - **AI personal trainer** — powered by Groq API (free tier)
+- **Explains your plan, doesn't override it** — it's given each lift's plan target and reason, and explains those rather than inventing its own numbers
 - **Knows your workout** — system prompt includes your current plan, so the coach can give contextual advice
 - **Persistent chat** — conversation history saved in `localStorage`
 - **Setup flow** — paste your Groq API key once; stored locally, never sent anywhere except Groq
@@ -127,5 +130,6 @@ The workout plan and meal plan are defined as data arrays inline in `index.html`
 ```
 Workout-App/
 ├── index.html    # Entire app — HTML, CSS, JS, and service worker in one file
+├── CLAUDE.md     # How to work on this repo with Claude Code: the core rule, versioning, known pitfalls
 └── start.sh      # Launches a local HTTP server (needed for service worker)
 ```

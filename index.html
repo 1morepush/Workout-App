@@ -138,7 +138,9 @@ body::after {
 }
 
 /* ── MAIN ────────────────────────────────────────── */
-#main { flex: 1; padding: 12px 14px 0; display: flex; flex-direction: column; gap: 10px; }
+/* Bottom padding lets the last card scroll clear of the floating add/reset buttons,
+   which reach ~185px up from the screen edge; without it they permanently cover it. */
+#main { flex: 1; padding: 12px 14px 130px; display: flex; flex-direction: column; gap: 10px; }
 
 /* ── EXERCISE CARD ───────────────────────────────── */
 .ex-card {
@@ -866,6 +868,60 @@ body::after {
   text-transform: uppercase; cursor: pointer;
 }
 
+/* ── WHAT'S NEW ──────────────────────────────────── */
+.ver-btn {
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .14em; color: var(--text-sub);
+  background: none; border: 1px solid transparent; border-radius: 5px; padding: 3px 6px;
+  margin-bottom: 2px; cursor: pointer;
+}
+.ver-btn.is-new { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 40%, transparent); }
+.nav-tab { position: relative; }
+.nav-tab.has-new::after {
+  content: ''; position: absolute; top: 9px; left: calc(50% + 12px);
+  width: 7px; height: 7px; border-radius: 50%; background: var(--gold);
+}
+.notes-sheet { max-height: 86vh; display: flex; flex-direction: column; }
+.notes-sheet .sheet-title { color: var(--gold); }
+#notesBody { overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding-right: 2px; }
+.rel { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+.rel:last-child { border-bottom: none; }
+.rel-hd { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.rel-ver { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: .12em; color: var(--text-sub); }
+.rel-name { font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: .05em; color: var(--text); line-height: 1; }
+.rel.is-current .rel-name { color: var(--gold); }
+.rel-tag {
+  font-family: 'DM Mono', monospace; font-size: 7.5px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--gold); border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent); border-radius: 3px; padding: 2px 5px;
+}
+.rel-date { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .1em; color: var(--text-sub); margin-top: 4px; text-transform: uppercase; }
+.rel-head { font-size: 14px; color: var(--text); font-weight: 500; margin: 8px 0 6px; }
+.rel-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.rel-list li { font-size: 13px; color: var(--text-sub); line-height: 1.5; padding-left: 13px; position: relative; }
+.rel-list li::before { content: '·'; position: absolute; left: 2px; color: var(--gold); }
+
+/* ── PLAN TARGET ON CARDS ────────────────────────── */
+.plan-row {
+  margin: 8px 14px 2px; padding: 8px 10px; border-radius: 8px;   /* inset to match card content */
+  background: color-mix(in srgb, var(--gold) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 16%, transparent);
+}
+.plan-row.is-deload {
+  background: color-mix(in srgb, var(--rust) 6%, transparent);
+  border-color: color-mix(in srgb, var(--rust) 22%, transparent);
+}
+.plan-top { display: flex; align-items: center; gap: 8px; }
+.plan-lbl { font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.plan-row.is-deload .plan-lbl { color: var(--rust); }
+.plan-val { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); margin-left: auto; font-variant-numeric: tabular-nums; }
+.plan-use {
+  font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase;
+  background: none; border: 1px solid var(--border-md); color: var(--text-sub); border-radius: 5px;
+  padding: 4px 8px; cursor: pointer;
+}
+.plan-use:active { border-color: var(--gold); color: var(--gold); }
+.plan-why { font-size: 11.5px; color: var(--text-sub); line-height: 1.45; margin-top: 3px; }
+.plan-note { font-size: 11.5px; color: var(--text-sub); line-height: 1.5; margin: -4px 0 12px; }
+
 /* ── INTAKE VIEW ─────────────────────────────────── */
 /* Semantic colors are fixed, not --day-color: on leg days the accent is rust,
    which would make "over your limit" look identical to normal progress. */
@@ -1243,6 +1299,15 @@ body::after {
   </div>
 </div>
 
+<!-- What's new -->
+<div class="overlay" id="notesOverlay">
+  <div class="sheet notes-sheet" role="dialog" aria-modal="true" aria-labelledby="notesTitle">
+    <div class="sheet-title" id="notesTitle">What’s new</div>
+    <div id="notesBody"></div>
+    <div class="sheet-actions"><button class="btn-cancel" id="notesClose">Done</button></div>
+  </div>
+</div>
+
 <!-- Intake sheet: describe / reading / review / targets -->
 <div class="overlay" id="intakeOverlay">
   <div class="sheet in-sheet" id="intakeSheet" role="dialog" aria-modal="true"></div>
@@ -1412,6 +1477,8 @@ const OVERLOAD_RULES = [
   },
 ];
 
+// `also` lists the name the Train card uses when it differs. Start weights the user
+// customises are saved under `name`, so rename via `also` rather than editing `name`.
 const ALL_EXERCISES_CALC = [
   {name:'Barbell Bench Press',      start:95,   incr:5,   bw:false},
   {name:'Arnold Press',             start:25,   incr:2.5, bw:false},
@@ -1420,10 +1487,10 @@ const ALL_EXERCISES_CALC = [
   {name:'Overhead Tricep Extension',start:40,   incr:2.5, bw:false},
   {name:'Tricep Pushdown',          start:40,   incr:5,   bw:false},
   {name:'Face Pull',                start:30,   incr:5,   bw:false},
-  {name:'Lat Pulldown',             start:80,   incr:5,   bw:false},
+  {name:'Lat Pulldown',             start:80,   incr:5,   bw:false, also:['Pull-ups / Lat Pulldown']},
   {name:'Chest-Supported Row',      start:45,   incr:5,   bw:false},
-  {name:'Single-Arm DB Row',        start:40,   incr:5,   bw:false},
-  {name:'Cable Row',                start:60,   incr:5,   bw:false},
+  {name:'Single-Arm DB Row',        start:40,   incr:5,   bw:false, also:['Single-Arm Dumbbell Row']},
+  {name:'Cable Row',                start:60,   incr:5,   bw:false, also:['Cable Row (Neutral Grip)']},
   {name:'Incline Dumbbell Curl',    start:20,   incr:2.5, bw:false},
   {name:'Hammer Curl',              start:25,   incr:2.5, bw:false},
   {name:'Rear Delt Fly',            start:12.5, incr:2.5, bw:false},
@@ -1433,7 +1500,7 @@ const ALL_EXERCISES_CALC = [
   {name:'Bulgarian Split Squat',    start:20,   incr:2.5, bw:false},
   {name:'Leg Curl (Lying)',         start:55,   incr:5,   bw:false},
   {name:'Standing Calf Raise',      start:90,   incr:10,  bw:false},
-  {name:'Dead Bug / Ab Wheel',      start:0,    incr:0,   bw:true},
+  {name:'Dead Bug / Ab Wheel',      start:0,    incr:0,   bw:true,  also:['Dead Bug + Ab Wheel']},
 ];
 
 let calcWeek      = lsGet('wt-calc-week')   || 1;
@@ -1521,7 +1588,77 @@ const EXERCISE_MUSCLES = {
 //  STATE + STORAGE
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v1.4';
+// ─── RELEASE NOTES ─────────────────────────────────────────────
+// What changed, newest first, shown under History → What's new. The version the app
+// reports is read from the top entry, so it can't drift from its notes: shipping a
+// user-visible change means adding a release here, and that is the whole bump.
+//
+// Which digit moves is decided by what the user gets, not by how much code changed:
+//   minor (1.5 → 1.6)    the app can do something it could not do before
+//   patch (1.5 → 1.5.1)  the app finally does what it already claimed to
+//   nothing              a refactor or test nobody holding the phone could notice
+// A fix that ships with a feature rides in that feature's release. Never rewrite a
+// release that has reached main; add a patch instead. Names are gym jokes.
+//
+// Versions before 1.2 were assigned after the fact, from git history. From 1.2 on
+// they are the numbers the app actually showed.
+const RELEASES = [
+  { version: '1.5', name: 'Progressive Overload', date: '2026-09-23',
+    headline: 'Every weight the app suggests now says why',
+    changes: [
+      'Each exercise shows this week’s plan target and the reason for it: your start weight, the phase, and the steps added. Tap “Use” to set it as your weight.',
+      'Deload weeks say what they are 65% of.',
+      'Deload weeks 4 and 8 now drop from the phase you just finished, as the overload rules always said. They were taking 65% of the next phase’s weight, 2.5–7.5 lbs too heavy on almost every lift.',
+      'Lat pulldown, single-arm dumbbell row and cable row now get plan targets. Their names on the Train cards didn’t match the calculator, so they never had one.',
+      'The Coach is given the plan’s targets and reasons, and explains them rather than suggesting numbers of its own.',
+      'The calculator, the cards and the Coach all use the same phase names: Accumulation, Intensification, Peak.',
+      'This list. The dot on History means there’s something new in it.',
+    ] },
+  { version: '1.4', name: 'Cheat Meal', date: '2026-09-23',
+    headline: 'An Intake tab that reads nutrition labels',
+    changes: [
+      'Log food by photographing the nutrition label, by describing what you ate, or by typing the numbers.',
+      '“Too much today” shows what you’ve gone over and which foods did it.',
+      '“Eat less of / avoid” flags foods with 20%+ of a daily limit in one serving, and anything with trans fat.',
+      'The AI Coach works again. The model it used was shut down by Groq on 16 August.',
+    ] },
+  { version: '1.3', name: 'Form Check', date: '2026-09-17',
+    headline: 'Eight fixes from a full code review',
+    changes: [
+      'Sets logged in the evening stay on the right day. After 8 PM Eastern they were being saved under tomorrow.',
+      'The date at the top matches the day you’re logging. Tapping a later weekday showed next week’s date.',
+      'The rest timer keeps time through a locked screen.',
+      'Reset clears History for that day too.',
+      'Swiping in Coach, Meal or History no longer changes your workout day.',
+      'Restoring from GitHub asks first, and works with large backups.',
+    ] },
+  { version: '1.2', name: 'Superset', date: '2026-06-12',
+    headline: 'Saved Coach conversations',
+    changes: [
+      'The Coach keeps a list of past chats. Start a new one, reopen an old one, or delete it.',
+      'The add and reset buttons moved to the left, off the weights.',
+      'The app shows its version number.',
+    ] },
+  { version: '1.1', name: 'Spotter', date: '2026-05-26',
+    headline: 'An AI Coach, backups, and logging past days',
+    changes: [
+      'An AI Coach that knows your plan and history.',
+      'Back up and restore everything through a private GitHub Gist.',
+      'Log sets and change weights on earlier days this week.',
+      'Each exercise shows the weight you used last session.',
+      'Edit past sessions in History, and force-refresh the app with Check for Updates.',
+    ] },
+  { version: '1.0', name: 'Day One', date: '2026-05-14',
+    headline: 'The tracker',
+    changes: [
+      'A push / pull / legs plan with a set tracker and a 90-second rest timer.',
+      'Meal plan, grocery list, weight calculator and overload rules.',
+      'Workout history with strength charts and a muscle heatmap.',
+    ] },
+];
+const APP_VERSION = 'v' + RELEASES[0].version;
+const SEEN_VERSION_KEY = 'wt-seen-version';   // per device, deliberately not synced
+function hasUnseenRelease() { return lsGet(SEEN_VERSION_KEY) !== RELEASES[0].version; }
 
 // YYYY-MM-DD in the user's OWN timezone. Never use toISOString() for date keys —
 // it converts to UTC, so evenings west of UTC would log under tomorrow's date.
@@ -1811,6 +1948,27 @@ function buildCard(ex) {
     card.appendChild(pwRow);
   }
 
+  // what the plan says for this week, and why — from planFor(), never computed here
+  const plan = planFor(ex.name);
+  if (plan) {
+    const row = document.createElement('div'); row.className = 'plan-row' + (plan.deload ? ' is-deload' : '');
+    const top = document.createElement('div'); top.className = 'plan-top';
+    const lbl = document.createElement('span'); lbl.className = 'plan-lbl';
+    lbl.textContent = (plan.deload ? 'Deload' : 'Plan') + ' · wk ' + plan.week;
+    const val = document.createElement('span'); val.className = 'plan-val'; val.textContent = fmtW(plan.target);
+    top.appendChild(lbl); top.appendChild(val);
+    const current = parseFloat(ex.weight);
+    if (!(isFinite(current) && Math.abs(current - plan.target) < 0.01)) {
+      const use = document.createElement('button'); use.className = 'plan-use';
+      use.dataset.usePlan = ex.id; use.textContent = 'Use';
+      use.setAttribute('aria-label', 'Set weight to ' + fmtW(plan.target));
+      top.appendChild(use);
+    }
+    const why = document.createElement('div'); why.className = 'plan-why'; why.textContent = plan.why;
+    row.appendChild(top); row.appendChild(why);
+    card.appendChild(row);
+  }
+
   // REST button
   const restBtn = document.createElement('button');
   restBtn.className = 'rest-btn';
@@ -1969,6 +2127,14 @@ document.getElementById('main').addEventListener('click', e => {
   // recovery check
   const rec=e.target.closest('[data-rec]');
   if (rec && viewDay===TODAY_IDX) { setDone(rec.dataset.rec, getDone(rec.dataset.rec)?0:1); renderMain(); return; }
+
+  // plan "Use" — set the working weight to this week's target (the user's call, one tap)
+  const up=e.target.closest('[data-use-plan]');
+  if (up) {
+    const ex=findEx(up.dataset.usePlan), plan=ex&&planFor(ex.name);
+    if (ex && plan) { ex.weight=fmtW(plan.target); saveAll(); replaceCard(ex, true, getDone(ex.id)); }
+    return;
+  }
 
   // weight chip
   const wt=e.target.closest('[data-wt]');
@@ -2381,17 +2547,54 @@ function buildOverloadCard() {
 //  WEIGHT CALCULATOR
 // ═══════════════════════════════════════════════════════════════
 
-function calcTarget(idx, week) {
-  const ex = ALL_EXERCISES_CALC[idx];
-  if (ex.bw) return null;
-  const startW = parseFloat(calcStarts[ex.name]) || ex.start;
-  const DELOAD_WKS = [4, 8, 12];
-  const isDeload   = DELOAD_WKS.includes(week);
-  const phase      = week <= 3 ? 0 : week <= 7 ? 1 : 2;
-  const working    = startW + ex.incr * phase;
-  if (isDeload) return Math.round(working * 0.65 / 2.5) * 2.5;
-  return Math.round(working / 2.5) * 2.5;
+// ─── PLAN RULES: the one place weights are decided ─────────────
+// Every weight the app suggests comes from planFor(), and so does the sentence
+// explaining it. The calculator, the Train cards and the Coach all call it and
+// none computes a weight itself, so a number and its reason can never disagree.
+// The AI Coach explains these numbers; it does not get to invent its own.
+
+const DELOAD_WEEKS = [4, 8, 12];
+const DELOAD_PCT   = 0.65;
+const PLAN_PHASES  = [
+  { n: 1, name: 'Accumulation',    weeks: '1–4',  aim: 'build your baseline' },
+  { n: 2, name: 'Intensification', weeks: '5–8',  aim: 'steady progression'  },
+  { n: 3, name: 'Peak',            weeks: '9–12', aim: 'push limits'         },
+];
+
+function weekInfo(week) {
+  const w = Math.min(12, Math.max(1, Math.round(week) || 1));
+  // A deload week closes its own phase: week 4 is Phase 1's deload, not Phase 2's.
+  return { week: w, phase: PLAN_PHASES[Math.floor((w - 1) / 4)], deload: DELOAD_WEEKS.includes(w) };
 }
+
+function roundPlate(v) { return Math.round(v / 2.5) * 2.5; }
+function fmtW(v) { return (Math.round(v * 10) / 10) + ' lbs'; }
+
+function planExercise(name) {
+  return ALL_EXERCISES_CALC.find(e => e.name === name || (e.also || []).includes(name)) || null;
+}
+
+// null for bodyweight moves and anything not in the 12-week plan.
+function planFor(name, week = calcWeek) {
+  const ex = planExercise(name);
+  if (!ex || ex.bw) return null;
+  const wi = weekInfo(week);
+  const custom = parseFloat(calcStarts[ex.name]);
+  const start = isFinite(custom) ? custom : ex.start;
+  const steps = wi.phase.n - 1;
+  const working = roundPlate(start + ex.incr * steps);
+  const target = wi.deload ? roundPlate(working * DELOAD_PCT) : working;
+  const from = (isFinite(custom) ? 'your ' : 'the plan’s ') + fmtW(start) + ' start';
+  const phaseTxt = 'Phase ' + wi.phase.n + ' (' + wi.phase.name + ')';
+  let why;
+  if (wi.deload)       why = 'Deload: 65% of your ' + fmtW(working) + ' ' + wi.phase.name + ' weight. Same reps, focus on form.';
+  else if (steps === 0) why = phaseTxt + ': ' + from + ', no increase yet.';
+  else                  why = phaseTxt + ': ' + from + ' + ' + steps + ' × ' + fmtW(ex.incr) + '.';
+  return { target, working, start, steps, incr: ex.incr, week: wi.week, phase: wi.phase, deload: wi.deload, why };
+}
+
+// What the schedule can't know, said once wherever targets appear.
+const PLAN_LIMIT_NOTE = 'Targets follow the 12-week schedule. The app records sets, not reps, so it can’t tell whether you reached the top of your rep range. If you didn’t, stay at your current weight (double progression).';
 
 function renderCalcSheet() {
   const container = document.getElementById('calcBody');
@@ -2408,25 +2611,23 @@ function renderCalcSheet() {
     btn.textContent = String(w);
     btn.addEventListener('click', () => {
       calcWeek = w; lsSet('wt-calc-week', w);
-      renderCalcSheet();
+      renderCalcSheet(); renderMain();   // Plan lines on the cards depend on the week
     });
     weekRow.appendChild(btn);
   }
   container.appendChild(weekRow);
 
-  const isDeloadWeek = [4,8,12].includes(calcWeek);
-  const PHASES = ['PHASE 1 — WEEKS 1–4 — Accumulation: build your baseline',
-                  'DELOAD — Drop to 65%, focus on form',
-                  'PHASE 2 — WEEKS 5–8 — Intensification: steady progression',
-                  'DELOAD — Drop to 65%, focus on form',
-                  'PHASE 3 — WEEKS 9–12 — Peak: push limits'];
-  const phaseIdx = calcWeek <= 3 ? 0 : calcWeek === 4 ? 1 : calcWeek <= 7 ? 2 : calcWeek === 8 ? 3 : 4;
+  const wi = weekInfo(calcWeek), isDeloadWeek = wi.deload;
   const banner = document.createElement('div'); banner.className = 'calc-phase-banner';
   banner.style.color      = isDeloadWeek ? 'var(--rust)' : 'var(--day-color)';
   banner.style.background = isDeloadWeek ? 'rgba(200,85,42,.07)' : 'color-mix(in srgb, var(--day-color) 7%, transparent)';
   banner.style.borderColor= isDeloadWeek ? 'rgba(200,85,42,.2)' : 'color-mix(in srgb, var(--day-color) 20%, transparent)';
-  banner.textContent = PHASES[phaseIdx];
+  banner.textContent = isDeloadWeek
+    ? 'DELOAD — WEEK ' + wi.week + ' — 65% of your Phase ' + wi.phase.n + ' weight, focus on form'
+    : 'PHASE ' + wi.phase.n + ' — WEEKS ' + wi.phase.weeks + ' — ' + wi.phase.name + ': ' + wi.phase.aim;
   container.appendChild(banner);
+  const note = document.createElement('div'); note.className = 'plan-note'; note.textContent = PLAN_LIMIT_NOTE;
+  container.appendChild(note);
 
   const thdr = document.createElement('div'); thdr.className = 'calc-table-hdr';
   [['EXERCISE','flex:1'],['START WT','width:62px;text-align:center'],['TARGET','width:60px;text-align:right']].forEach(([t,s]) => {
@@ -2447,16 +2648,17 @@ function renderCalcSheet() {
     if (ex.bw) startInp.disabled = true;
     startInp.addEventListener('change', () => {
       const v = parseFloat(startInp.value);
-      if (!isNaN(v)) { calcStarts[ex.name] = v; lsSet('wt-calc-starts', calcStarts); renderCalcSheet(); }
+      if (!isNaN(v)) { calcStarts[ex.name] = v; lsSet('wt-calc-starts', calcStarts); renderCalcSheet(); renderMain(); }
     });
 
     const tgt = document.createElement('div');
     if (ex.bw) {
       tgt.className = 'calc-target-val is-bw'; tgt.textContent = 'BW';
     } else {
-      const t = calcTarget(idx, calcWeek);
+      const plan = planFor(ex.name, calcWeek);
       tgt.className = 'calc-target-val ' + (isDeloadWeek ? 'is-deload' : 'is-working');
-      tgt.textContent = t + ' lbs';
+      tgt.textContent = fmtW(plan.target);
+      tgt.title = plan.why;
     }
 
     row.appendChild(name); row.appendChild(startInp); row.appendChild(tgt);
@@ -3352,6 +3554,51 @@ document.getElementById('intakeOverlay').addEventListener('click', e => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+//  WHAT'S NEW (release notes sheet)
+// ═══════════════════════════════════════════════════════════════
+
+function fmtReleaseDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number);   // a calendar date, not an instant — no timezone math
+  return d + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1] + ' ' + y;
+}
+
+function updateNewDot() {
+  const tab = document.querySelector('.nav-tab[data-tab="history"]');
+  if (tab) tab.classList.toggle('has-new', hasUnseenRelease());
+}
+
+function openReleaseNotes() {
+  const body = document.getElementById('notesBody');
+  body.textContent = '';
+  RELEASES.forEach((r, i) => {
+    const sec = mk('section', 'rel' + (i === 0 ? ' is-current' : ''));
+    const hd = mk('div', 'rel-hd');
+    hd.appendChild(mk('span', 'rel-ver', 'v' + r.version));
+    hd.appendChild(mk('span', 'rel-name', r.name));
+    if (i === 0) hd.appendChild(mk('span', 'rel-tag', 'This phone'));
+    sec.appendChild(hd);
+    sec.appendChild(mk('div', 'rel-date', fmtReleaseDate(r.date)));
+    sec.appendChild(mk('div', 'rel-head', r.headline));
+    const ul = mk('ul', 'rel-list');
+    r.changes.forEach(c => ul.appendChild(mk('li', '', c)));
+    sec.appendChild(ul);
+    body.appendChild(sec);
+  });
+  document.getElementById('notesOverlay').classList.add('open');
+  body.scrollTop = 0;
+  lsSet(SEEN_VERSION_KEY, RELEASES[0].version);
+  updateNewDot();
+  const ver = document.querySelector('.ver-btn');
+  if (ver) { ver.classList.remove('is-new'); ver.textContent = APP_VERSION; }
+}
+
+document.getElementById('notesClose').addEventListener('click', () =>
+  document.getElementById('notesOverlay').classList.remove('open'));
+document.getElementById('notesOverlay').addEventListener('click', e => {
+  if (e.target.id === 'notesOverlay') e.target.classList.remove('open');
+});
+
+// ═══════════════════════════════════════════════════════════════
 //  GITHUB GIST SYNC
 // ═══════════════════════════════════════════════════════════════
 
@@ -3629,8 +3876,15 @@ function buildGistSection() {
   updateTitle.textContent = 'App Updates';
   updateCard.appendChild(updateTitle);
   const updateSub = document.createElement('div'); updateSub.className = 'gist-setup-sub';
-  updateSub.textContent = 'If the app looks outdated after a code\nchange, force a fresh reload here.';
+  const r0 = RELEASES[0];
+  updateSub.textContent = 'Running ' + APP_VERSION + ' · ' + r0.name + ' · ' + fmtReleaseDate(r0.date) +
+    '.\nIf that’s older than you expect, the update hasn’t reached\nthis phone yet — Check for Updates fixes that.';
   updateCard.appendChild(updateSub);
+  const notesBtn = document.createElement('button'); notesBtn.className = 'gist-restore-btn';
+  notesBtn.style.cssText = 'font-size:15px;width:100%;margin-bottom:8px';
+  notesBtn.textContent = 'WHAT’S NEW';
+  notesBtn.addEventListener('click', openReleaseNotes);
+  updateCard.appendChild(notesBtn);
   const updateBtn = document.createElement('button'); updateBtn.className = 'gist-save-btn';
   updateBtn.style.fontSize = '15px';
   updateBtn.textContent = 'CHECK FOR UPDATES';
@@ -3775,8 +4029,10 @@ function renderHistory() {
   const hdr = document.createElement('div'); hdr.className = 'hist-header';
   const hdrTop = document.createElement('div'); hdrTop.style.cssText = 'display:flex;align-items:flex-end;justify-content:space-between';
   const ttl = document.createElement('div'); ttl.className = 'hist-title'; ttl.textContent = 'HISTORY';
-  const ver = document.createElement('div'); ver.style.cssText = 'font-family:"DM Mono",monospace;font-size:9px;letter-spacing:.14em;color:var(--text-dim);padding-bottom:4px';
-  ver.textContent = APP_VERSION;
+  const ver = document.createElement('button'); ver.className = 'ver-btn' + (hasUnseenRelease() ? ' is-new' : '');
+  ver.textContent = APP_VERSION + (hasUnseenRelease() ? ' · NEW' : '');
+  ver.setAttribute('aria-label', 'What’s new in ' + APP_VERSION);
+  ver.addEventListener('click', openReleaseNotes);
   hdrTop.appendChild(ttl); hdrTop.appendChild(ver);
   const sub = document.createElement('div'); sub.className = 'hist-sub';
   sub.textContent = dates.length === 0 ? 'No sessions logged yet'
@@ -4156,11 +4412,16 @@ function buildCoachSystemPrompt() {
 
   let prompt = `You are a knowledgeable, encouraging personal trainer built into a workout tracking app. You know the user's full workout plan, their current weights, and their recent history. Be concise, specific, and practical. Use the data you have to give personalized advice.\n\n`;
 
+  // The app's plan decides weights and deloads (planFor). The Coach explains them.
+  prompt += `WEIGHTS — IMPORTANT: The app's 12-week plan decides working weights and deload weeks. Each exercise below lists the plan's target for this week and the reason. When asked what weight to use, give that target and its reason in your own words. Do not invent different numbers. The app records completed sets but not reps, so you cannot know whether the user reached the top of their rep range — ask. If they did not, the plan's rule is to stay at their current weight (double progression). If they want to deviate, explain the tradeoff and leave the choice to them.\n\n`;
+
   prompt += `TODAY (${TODAY_STR}) — ${day.dayName} — ${day.type.toUpperCase()} DAY\n`;
   if (day.type !== 'rest' && day.exercises) {
     day.exercises.forEach(ex => {
       const done = Math.min(todayC[ex.id] || 0, ex.sets);
-      prompt += `  • ${ex.name}: ${ex.sets}×${ex.reps} @ ${ex.weight || 'bodyweight'} — ${done}/${ex.sets} sets done\n`;
+      const plan = planFor(ex.name);
+      prompt += `  • ${ex.name}: ${ex.sets}×${ex.reps} @ ${ex.weight || 'bodyweight'} — ${done}/${ex.sets} sets done`;
+      prompt += plan ? ` — plan target ${fmtW(plan.target)} (${plan.why})\n` : `\n`;
     });
   } else {
     prompt += `  Rest/recovery day\n`;
@@ -4178,9 +4439,8 @@ function buildCoachSystemPrompt() {
     });
   }
 
-  const week = (lsGet('wt-calc-week') || 1);
-  const phase = week <= 3 ? 'Foundation' : week <= 7 ? 'Progression' : 'Peak/Deload';
-  prompt += `\nTRAINING WEEK: ${week} — Phase: ${phase}\n`;
+  const wi = weekInfo(calcWeek);
+  prompt += `\nTRAINING WEEK: ${wi.week} of 12 — Phase ${wi.phase.n} (${wi.phase.name}: ${wi.phase.aim})${wi.deload ? ' — DELOAD WEEK, 65% of working weight' : ''}\n`;
   prompt += `\nFULL WEEKLY PLAN:\n`;
   workouts.forEach((w, i) => {
     const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -4460,6 +4720,7 @@ function appendCoachBubble(msgsEl, role, text) {
 
 renderHeader();
 renderMain();
+updateNewDot();
 </script>
 </body>
 </html>
