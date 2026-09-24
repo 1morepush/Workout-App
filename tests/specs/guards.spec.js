@@ -22,6 +22,7 @@ const DEVICE_ONLY = {
   'wt-gh-token':      'GitHub token — a credential',
   'wt-gh-gist-id':    'which Gist this phone syncs to',
   'wt-gh-last-sync':  'this phone’s last sync time',
+  'wt-gh-remote-at':  'the backup’s version this phone last saw — how it spots another device’s changes',
   'wt-seen-version':  'whether this phone has seen the newest release notes',
   'wt-coach-msgs':    'legacy single-chat store, read once for migration',
   'wt-datefix-dismissed': 'this phone chose to leave pre-v1.3 misdated sessions alone',

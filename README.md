@@ -117,7 +117,7 @@ Sync your workout history across devices without a backend.
 1. Go to [github.com/settings/tokens](https://github.com/settings/tokens) → **Generate new token (classic)**
 2. Grant only the `gist` scope
 3. In the app → History tab → paste your token and a Gist ID (or create a new one)
-4. Your data syncs automatically every session
+4. Your data syncs automatically every session. If another phone changed the backup since this one last synced, the app asks before replacing it
 
 Your token is stored in `localStorage` and only ever sent to `api.github.com`.
 

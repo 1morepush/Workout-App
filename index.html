@@ -1692,6 +1692,18 @@ const EXERCISE_MUSCLES = {
 // Versions before 1.2 were assigned after the fact, from git history. From 1.2 on
 // they are the numbers the app actually showed.
 const RELEASES = [
+  { version: '1.9.1', name: 'Graveyard Shift', date: '2026-09-24',
+    headline: 'Late workouts stay on their day, and your backup can’t be overwritten by accident',
+    changes: [
+      'A workout that runs past midnight stays on the day you started it, and opening the app the next morning shows the new day. Before, the app could file sets under the wrong date or add them to another day’s session, and the Coach was told yesterday’s workout and food.',
+      'Ticking a recovery item on a rest day now saves.',
+      'Cancelling a first-time Restore, or one that fails, no longer leaves this phone connected and about to back its own data over your real backup.',
+      'Restoring cancels a backup that was about to be sent, so your phone’s old data can’t land on top of what you just restored.',
+      'If another phone changed your backup since this one last synced, it isn’t replaced silently any more — you choose whether to restore it or replace it.',
+      'Connect & Sync finds a backup you already have instead of starting a new one each time, and asks before replacing it.',
+      'Saving the body sheet only logs a weigh-in for today if you typed today’s weight. It used to save your last reading — even weeks old, or one you had just deleted — as today’s.',
+      'The week after a deload, the next-step advice reads your last working session again, not the lighter deload one.',
+    ] },
   { version: '1.9', name: 'One More Rep', date: '2026-09-23',
     headline: 'Log your reps, and each lift says when you’ve earned more weight',
     changes: [
@@ -1795,16 +1807,19 @@ function isoLocal(d) {
          String(d.getDate()).padStart(2, '0');
 }
 
-const TODAY_IDX = new Date().getDay();
-const TODAY_STR = isoLocal(new Date());
+// Today, read from the clock every time. These used to be constants set when the
+// page loaded, so a workout past midnight — or the app reopened next morning
+// without a reload — mixed yesterday's weekday with today's date.
+function todayIdx() { return new Date().getDay(); }
+function todayStr() { return isoLocal(new Date()); }
 const DAYS_S    = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 
 // The actual calendar date of the day currently being viewed. Day pills always
 // refer to the most recent occurrence of that weekday (today, or up to 6 days back).
 // Anchored at noon so DST transitions can't shift it across a date boundary.
 function viewDayDate() {
-  const diff = (TODAY_IDX - viewDay + 7) % 7;
-  const d = new Date();
+  const d = new Date();   // one reading of the clock for both the weekday and the date
+  const diff = (d.getDay() - viewDay + 7) % 7;
   d.setHours(12, 0, 0, 0);
   d.setDate(d.getDate() - diff);
   return d;
@@ -1834,15 +1849,42 @@ let completions = lsGet('wt-done')   || {};
 let nextId      = lsGet('wt-nextid') || 500;
 let editingId   = null;
 let coachActiveSessionId = null; // null=list, 'new'=blank chat, 'session_xxx'=existing
-let viewDay     = TODAY_IDX;
+let viewDay     = todayIdx();
 let timer       = {active:false, secs:90, iv:null, forExId:null, endsAt:0};
 
 // Logged sets aren't saved here: commitHistory() is their only writer.
 function saveAll() { lsSet('wt-plans',workouts); lsSet('wt-nextid',nextId); scheduleSyncToGist(); }
 
+// The day being trained right now: today, or — for a workout that runs past
+// midnight — the day it started, as long as a set was logged on it recently.
+const CARRY_OVER_MS = 3 * 60 * 60 * 1000;
+let lastLog = { ds: null, at: 0 };   // this visit only: where and when the last set was tapped
+function isLiveDay() {
+  const ds = viewDayStr();
+  return ds === todayStr() || (lastLog.ds === ds && Date.now() - lastLog.at < CARRY_OVER_MS);
+}
+
+// The clock passed midnight while the app was open or asleep. A workout still in
+// progress stays on its own day; otherwise Train moves to today. Either way the
+// date labels are redrawn, since they were worked out on the old day.
+let shownDay = todayStr();
+function checkNewDay() {
+  if (todayStr() === shownDay) return;
+  shownDay = todayStr();
+  if (!isLiveDay()) viewDay = todayIdx();
+  if (currentTab === 'train') { renderHeader(); renderMain(); }
+  else if (currentTab === 'intake') { intakeOffset = 0; renderIntake(); }
+  else if (currentTab === 'history') renderHistory();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkNewDay(); });
+window.addEventListener('pageshow', checkNewDay);
+window.addEventListener('focus', checkNewDay);
+setInterval(checkNewDay, 60 * 1000);
+
 function getDone(id)   { return (completions[viewDayStr()]||{})[id] || 0; }
 function setDone(id,n) {
   const ds = viewDayStr(), day = workouts[viewDay];
+  if (isLiveDay()) lastLog = { ds, at: Date.now() };   // back-filling a past day doesn't make it live
   if (day.type === 'rest') setRecovery(ds, viewDay, id, n > 0);
   else logSets(ds, viewDay, id, n);
 }
@@ -1935,7 +1977,7 @@ function renderHeader() {
     DAYS_S[viewDay] + ', ' + MONTHS_S[d.getMonth()] + ' ' + d.getDate();
 
   // hero
-  document.getElementById('heroLabel').textContent   = viewDay === TODAY_IDX ? 'TODAY' : day.dayName;
+  document.getElementById('heroLabel').textContent   = viewDay === todayIdx() ? 'TODAY' : day.dayName;
   document.getElementById('heroDayType').textContent = day.label.toUpperCase();
   document.getElementById('heroSub').textContent     = day.sub;
 
@@ -1953,7 +1995,7 @@ function renderHeader() {
 
     const dot = document.createElement('span');
     dot.className = 'dp-dot';
-    if (i === TODAY_IDX) dot.style.background = TYPE_COLOR[workouts[i].type] || color;
+    if (i === todayIdx()) dot.style.background = TYPE_COLOR[workouts[i].type] || color;
 
     pill.appendChild(lbl);
     pill.appendChild(dot);
@@ -2206,7 +2248,7 @@ function renderRestDay(container, day) {
   const items   = day.recovery || [];
   const isDone  = items.filter(r=>getDone(r.id)).length;
   const allDone = isDone===items.length && items.length>0;
-  const isToday = viewDay===TODAY_IDX;
+  const isToday = isLiveDay();
 
   const hero = document.createElement('div'); hero.className='rest-hero';
   const ico  = document.createElement('div'); ico.className='rest-icon';  ico.textContent='🌿';
@@ -2261,7 +2303,7 @@ document.getElementById('main').addEventListener('click', e => {
     if (!ex) return;
     const cur=getDone(exId), newN=idx<cur?idx:idx+1, wasAll=cur>=ex.sets;
     setDone(exId,newN);
-    if (newN>cur && viewDay===TODAY_IDX) startTimer(exId);
+    if (newN>cur && isLiveDay()) startTimer(exId);
     replaceCard(ex,wasAll,newN);
     updateSetsBar();
     return;
@@ -2269,7 +2311,7 @@ document.getElementById('main').addEventListener('click', e => {
 
   // rest button tap
   const restBtn = e.target.closest('.rest-btn');
-  if (restBtn && viewDay===TODAY_IDX) {
+  if (restBtn && isLiveDay()) {
     const exId=restBtn.dataset.rest;
     if (timer.active && timer.forExId===exId) stopTimer();
     else startTimer(exId);
@@ -2292,7 +2334,7 @@ document.getElementById('main').addEventListener('click', e => {
 
   // recovery check
   const rec=e.target.closest('[data-rec]');
-  if (rec && viewDay===TODAY_IDX) { setDone(rec.dataset.rec, getDone(rec.dataset.rec)?0:1); renderMain(); return; }
+  if (rec && isLiveDay()) { setDone(rec.dataset.rec, getDone(rec.dataset.rec)?0:1); renderMain(); return; }
 
   // reps chip — record reps for one set; Enter moves on to the next empty one
   const rc = e.target.closest('[data-reps-ex]');
@@ -2805,16 +2847,34 @@ function repRange(s) {
   return lo > 0 && lo <= hi ? [lo, hi] : null;
 }
 
-// Most recent session before `beforeDs` with logged sets of this exercise.
+// Most recent working session before `beforeDs` with logged sets of this
+// exercise. Deload sessions are skipped: 65% for form says nothing about whether
+// the working weight was earned, and reading it would advise staying at, or
+// adding to, the deload weight. `deload` names the one that was passed over.
 function lastSessionFor(hist, ex, beforeDs) {
   const dates = Object.keys(hist).filter(d => d < beforeDs).sort().reverse();
+  const found = [];
   for (const d of dates) {
     const e = hist[d];
     if (!e || e.type === 'rest') continue;
     const x = (e.exercises || []).find(y => y.id === ex.id || y.name === ex.name);
-    if (x && x.log && x.log.length) return { date: d, x };
+    if (x && x.log && x.log.length) found.push({ date: d, x, e });
+  }
+  let deload = null;
+  for (let i = 0; i < found.length; i++) {
+    if (!isDeloadSession(found[i], found[i + 1])) return { date: found[i].date, x: found[i].x, deload };
+    deload = deload || found[i].date;
   }
   return null;
+}
+
+// Sessions logged since v1.9.1 say whether they were in a deload week. Older ones
+// don't, so for those: a top weight at or below 75% of the previous session's is
+// a deload (the plan's is 65%), not a bad day.
+function isDeloadSession(s, before) {
+  if (typeof s.e.deload === 'boolean') return s.e.deload;
+  const top = f => Math.max(0, ...f.x.log.map(l => l.lbs || 0));
+  return !!before && top(s) > 0 && top(before) > 0 && top(s) <= top(before) * 0.75;
 }
 
 // Pure: → null, or { verdict: 'add' | 'stay' | 'finish' | 'reps', lbs, next, text }
@@ -2826,7 +2886,7 @@ function progressionFor(ex, last, week) {
   log.forEach(s => { if (s.lbs) counts[s.lbs] = (counts[s.lbs] || 0) + 1; });
   const lbs = +Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || parseLbs(last.x.weight);
   const at = lbs ? ' at ' + fmtW(lbs) : '';
-  const when = 'Last time (' + fmtShortDate(last.date) + '): ';
+  const when = 'Last time (' + fmtShortDate(last.date) + (last.deload ? ', before the deload' : '') + '): ';
   if (log.some(s => s.reps == null)) {
     return { verdict: 'reps', lbs, text: when + log.length + ' set' + (log.length === 1 ? '' : 's') + at + ', reps not logged. Log reps to see when to add weight.' };
   }
@@ -3734,8 +3794,11 @@ document.getElementById('intakeView').addEventListener('click', e => {
     }
     if (act === 'body') {
       const prof = bodyProfile();
-      inOpen({ mode: 'body', tape: prof.waistIn != null, weighins: Object.assign({}, weighIns()),
-               body: Object.assign({}, prof, { lbs: (weighIns()[isoLocal(new Date())] ?? (latestWeighIn() || {}).lbs) || null }) });
+      // Today's weigh-in if there is one. Otherwise the last reading is shown for
+      // the preview, but it is only saved as today's if the user types a weight.
+      const todays = weighIns()[isoLocal(new Date())];
+      inOpen({ mode: 'body', tape: prof.waistIn != null, weighins: Object.assign({}, weighIns()), lbsAuto: todays == null,
+               body: Object.assign({}, prof, { lbs: todays ?? lastPastWeighIn(weighIns()) }) });
     }
     return;
   }
@@ -4027,7 +4090,7 @@ function renderIntakeSheet() {
       col.appendChild(inp); grid.appendChild(col);
       return inp;
     };
-    field('Weight (lbs)', 'lbs', b.lbs, 'e.g. 185');
+    field(d.lbsAuto && b.lbs != null ? 'Weight (lbs) · last' : 'Weight (lbs)', 'lbs', b.lbs, 'e.g. 185');
     field('Body fat %', 'bodyFat', b.bodyFat, 'if you know it');
     field('Goal body fat %', 'goalBf', b.goalBf, '15');
     field('Age', 'age', b.age, 'optional', 'numeric');
@@ -4035,6 +4098,11 @@ function renderIntakeSheet() {
     field('Height (ft)', 'heightFt', ft, 'optional', 'numeric');
     field('Height (in)', 'heightInch', inch, 'optional', 'numeric');
     s.appendChild(grid);
+    if (d.lbsAuto && b.lbs != null) {
+      const n = mk('div', 'in-seg-note', 'That’s your last weigh-in. Type today’s weight to log a new one — otherwise saving just updates the rest.');
+      n.style.marginTop = '8px';
+      s.appendChild(n);
+    }
 
     // No body-fat number? Estimate it from a tape measure (US Navy method).
     if (!d.tape) {
@@ -4173,6 +4241,24 @@ function reviewItem(it, i, removable) {
 }
 
 // ─── body sheet: draft → validation → preview ───
+// The newest usable reading before today — what the body sheet shows until the
+// user types today's weight.
+function lastPastWeighIn(w) {
+  const today = isoLocal(new Date());
+  const d = Object.keys(w).filter(k => k !== today && w[k] >= 70 && w[k] <= 700).sort().pop();
+  return d ? w[d] : null;
+}
+// After a past reading is fixed or deleted, a weight that was only shown (not
+// typed) follows it, so a deleted typo can't come back as today's weigh-in.
+function refreshAutoLbs(d) {
+  if (!d.lbsAuto) return;
+  d.body.lbs = lastPastWeighIn(d.weighins);
+  const inp = document.querySelector('#intakeSheet [data-bf="lbs"]');
+  if (inp) inp.value = d.body.lbs == null ? '' : String(d.body.lbs);
+  const prev = document.getElementById('bodyPreview');
+  if (prev) prev.textContent = bodyPreview(d.body);
+}
+
 function bodyDraftProfile(b) {
   return { bodyFat: b.bodyFat, goalBf: b.goalBf, age: b.age, heightIn: b.heightIn, sex: b.sex, activity: b.activity, pace: b.pace,
            waistIn: b.waistIn, neckIn: b.neckIn, hipIn: b.hipIn };
@@ -4226,10 +4312,12 @@ document.getElementById('intakeOverlay').addEventListener('input', e => {
   const t = e.target, d = inDraft;
   if (d && d.mode === 'body' && t.dataset.wi) {
     d.weighins[t.dataset.wi] = parseNum(t.value);
+    refreshAutoLbs(d);
     return;
   }
   if (d && d.mode === 'body' && t.dataset.bf) {
     const b = d.body, v = parseNum(t.value);
+    if (t.dataset.bf === 'lbs') d.lbsAuto = false;   // typed: this is today's weight
     if (t.dataset.bf === 'heightFt' || t.dataset.bf === 'heightInch') {
       const ft = parseNum(document.querySelector('#intakeSheet [data-bf="heightFt"]').value);
       const inch = parseNum(document.querySelector('#intakeSheet [data-bf="heightInch"]').value);
@@ -4338,6 +4426,7 @@ document.getElementById('intakeOverlay').addEventListener('click', e => {
   }
   if (act === 'wi-del') {
     delete d.weighins[b.dataset.date];
+    refreshAutoLbs(d);
     renderIntakeSheet();
     return;
   }
@@ -4350,7 +4439,9 @@ document.getElementById('intakeOverlay').addEventListener('click', e => {
     lsSet(BODY_STORE, bodyDraftProfile(d.body));
     const w = {};
     Object.keys(d.weighins).forEach(k => { w[k] = Math.round(d.weighins[k] * 10) / 10; });
-    w[isoLocal(new Date())] = Math.round(d.body.lbs * 10) / 10;   // one weigh-in per day; saving again corrects it
+    // One weigh-in per day; saving again corrects it. A weight carried over from
+    // an earlier day isn't today's reading, so it isn't logged as one.
+    if (!d.lbsAuto) w[isoLocal(new Date())] = Math.round(d.body.lbs * 10) / 10;
     lsSet(WEIGHINS_STORE, w);
     scheduleSyncToGist();
     inClose(); renderIntake();
@@ -4425,7 +4516,15 @@ const GIST_SYNC_KEY  = 'wt-gh-last-sync';
 const GIST_FILENAME  = 'workout-data.json';
 const SYNC_KEYS = ['wt-plans','wt-done','wt-nextid','wt-history','wt-grocery','wt-calc-week','wt-calc-starts','wt-coach-sessions','wt-intake','wt-intake-targets','wt-body','wt-weighins','wt-calibration'];
 
+// The backup's updated_at when this phone last wrote or restored it. Per device,
+// deliberately not synced: it is how a phone knows another one changed the
+// backup since, instead of silently replacing that phone's sessions.
+const GIST_REMOTE_KEY = 'wt-gh-remote-at';
+
 let syncTimer = null;
+let syncBusy  = null;    // the backup in flight, so two never race each other
+let syncAgain = false;   // something changed while it was in flight
+let restoring = false;   // a restore is underway: nothing may be backed up over it
 
 function gistToken()   { return lsGet(GIST_TOKEN_KEY) || ''; }
 function gistId()      { return lsGet(GIST_ID_KEY) || ''; }
@@ -4440,81 +4539,115 @@ function showSyncBar(type, msg, autohide = true) {
   if (autohide) setTimeout(() => { bar.classList.remove('show'); }, 3000);
 }
 
+function gistHeaders(token) { return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }; }
+function hideSyncBar() { document.getElementById('syncBar').classList.remove('show'); }
+
+function syncSnapshot() {
+  const data = {};
+  SYNC_KEYS.forEach(k => { const v = lsGet(k); if (v !== null) data[k] = v; });
+  return { description: 'Workout App Data', public: false,
+           files: { [GIST_FILENAME]: { content: JSON.stringify(data, null, 2) } } };
+}
+
+// Only a backup this phone created or restored is written to in the background.
 function scheduleSyncToGist() {
-  if (!gistToken()) return;
+  if (!gistToken() || !gistId() || restoring) return;
   clearTimeout(syncTimer);
   syncTimer = setTimeout(syncToGist, 4000);
 }
 
-async function syncToGist() {
-  const token = gistToken();
-  if (!token) return;
-
-  const data = {};
-  SYNC_KEYS.forEach(k => { const v = lsGet(k); if (v !== null) data[k] = v; });
-
-  showSyncBar('busy', 'Syncing…', false);
-
-  try {
-    const id = gistId();
-    const body = {
-      description: 'Workout App Data',
-      public: false,
-      files: { [GIST_FILENAME]: { content: JSON.stringify(data, null, 2) } },
-    };
-
-    let res;
-    if (id) {
-      res = await fetch(`https://api.github.com/gists/${id}`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-    } else {
-      res = await fetch('https://api.github.com/gists', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+// → 'ok' | 'conflict' | 'error' | undefined (not connected). { force } replaces a
+// backup another device changed — only after the user has said so.
+async function syncToGist(opts = {}) {
+  const token = gistToken(), id = gistId();
+  if (!token || !id || restoring) return;
+  if (syncBusy) { syncAgain = true; return syncBusy; }
+  clearTimeout(syncTimer);
+  syncBusy = (async () => {
+    showSyncBar('busy', 'Syncing…', false);
+    try {
+      const seen = lsGet(GIST_REMOTE_KEY);
+      if (seen && !opts.force) {
+        const cur = await fetch(`https://api.github.com/gists/${id}`, { headers: gistHeaders(token) });
+        const cj = await cur.json();
+        if (!cur.ok) throw new Error(cj.message || 'Could not check the backup');
+        if (cj.updated_at !== seen) {
+          showSyncBar('err', '✗ Not backed up — another device changed the backup. Restore it here, or tap Sync Now to replace it.');
+          return 'conflict';
+        }
+      }
+      const res = await fetch(`https://api.github.com/gists/${id}`, { method: 'PATCH', headers: gistHeaders(token), body: JSON.stringify(syncSnapshot()) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Sync failed');
+      lsSet(GIST_REMOTE_KEY, json.updated_at || null);
+      lsSet(GIST_SYNC_KEY, new Date().toISOString());
+      showSyncBar('ok', '✓ Backed up to GitHub');
+      if (document.getElementById('gistStatusVal')) renderGistStatus();
+      return 'ok';
+    } catch (e) {
+      showSyncBar('err', '✗ Sync failed: ' + e.message);
+      return 'error';
     }
-
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.message || 'Sync failed');
-
-    if (!id) gistSaveId(json.id);
-    lsSet(GIST_SYNC_KEY, new Date().toISOString());
-    showSyncBar('ok', '✓ Backed up to GitHub');
-    // refresh history tab sync status if visible
-    if (document.getElementById('gistStatusVal')) renderGistStatus();
-  } catch(e) {
-    showSyncBar('err', '✗ Sync failed: ' + e.message);
+  })();
+  try { return await syncBusy; }
+  finally {
+    syncBusy = null;
+    if (syncAgain) { syncAgain = false; scheduleSyncToGist(); }
   }
 }
 
+// This account's workout backups, newest first.
+async function listBackups(token) {
+  const res  = await fetch('https://api.github.com/gists?per_page=100', { headers: gistHeaders(token) });
+  const list = await res.json();
+  if (!res.ok) throw new Error(list.message || 'Could not list gists');
+  return list.filter(g => g.files?.[GIST_FILENAME]).sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+}
+
+// CONNECT & SYNC. Nothing is saved until it has worked, and an existing backup
+// is never replaced without asking (or duplicated by a second tap).
+async function connectGist(token) {
+  showSyncBar('busy', 'Connecting…', false);
+  try {
+    const found = await listBackups(token);
+    if (found.length) {
+      const when = new Date(found[0].updated_at).toLocaleDateString();
+      if (!confirm('You already have a backup on GitHub (last changed ' + when + ').\n\n' +
+                   'Replace it with this phone’s data?\n\nCancel keeps it — tap Restore to bring it to this phone instead.')) {
+        hideSyncBar(); return;
+      }
+      gistSaveToken(token); gistSaveId(found[0].id); lsSet(GIST_REMOTE_KEY, null);
+      await syncToGist({ force: true });
+      return;
+    }
+    const res  = await fetch('https://api.github.com/gists', { method: 'POST', headers: gistHeaders(token), body: JSON.stringify(syncSnapshot()) });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'Could not create the backup');
+    gistSaveToken(token); gistSaveId(json.id);
+    lsSet(GIST_REMOTE_KEY, json.updated_at || null);
+    lsSet(GIST_SYNC_KEY, new Date().toISOString());
+    showSyncBar('ok', '✓ Backed up to GitHub');
+  } catch (e) {
+    showSyncBar('err', '✗ ' + e.message);
+  }
+}
+
+// RESTORE on a phone that isn't connected yet: the token is only kept once the
+// restore has worked, so a cancelled or failed one can't leave this phone
+// linked — and about to back its own, near-empty data over the real backup.
 async function findAndRestoreGist(token) {
-  // Search user's gists for the workout data file — no Gist ID needed
   showSyncBar('busy', 'Finding your backup…', false);
   try {
-    const res  = await fetch('https://api.github.com/gists?per_page=50', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const list = await res.json();
-    if (!res.ok) throw new Error(list.message || 'Could not list gists');
-
-    const found = list.find(g => g.files?.[GIST_FILENAME]);
-    if (!found) throw new Error('No workout backup found in your gists');
-
-    gistSaveId(found.id);
-    await restoreFromGist();
+    const found = await listBackups(token);
+    if (!found.length) throw new Error('No workout backup found in your gists');
+    await restoreFromGist(token, found[0].id);
   } catch(e) {
     showSyncBar('err', '✗ ' + e.message);
   }
 }
 
-async function restoreFromGist() {
-  const token = gistToken();
-  const id    = gistId();
-  if (!token || !id) { showSyncBar('err', 'No Gist configured'); return; }
+async function restoreFromGist(token = gistToken(), id = gistId()) {
+  if (!token || !id) { showSyncBar('err', 'No Gist configured'); return false; }
 
   // Restoring replaces everything on this device. Say so before doing it.
   const localSessions = Object.keys(lsGet('wt-history') || {}).length;
@@ -4523,13 +4656,17 @@ async function restoreFromGist() {
     'This replaces all workout data on this device' +
     (localSessions ? ` (${localSessions} logged session${localSessions === 1 ? '' : 's'})` : '') +
     ' with the backup. This cannot be undone.'
-  )) return;
+  )) { hideSyncBar(); return false; }
+
+  // A backup of this phone's old data, waiting or in flight, must not land on
+  // top of the one being restored.
+  restoring = true;
+  clearTimeout(syncTimer);
+  if (syncBusy) await syncBusy;
 
   showSyncBar('busy', 'Restoring…', false);
   try {
-    const res  = await fetch(`https://api.github.com/gists/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res  = await fetch(`https://api.github.com/gists/${id}`, { headers: gistHeaders(token) });
     const json = await res.json();
     if (!res.ok) throw new Error(json.message || 'Fetch failed');
 
@@ -4545,7 +4682,10 @@ async function restoreFromGist() {
     if (!content) throw new Error('No data file found in Gist');
 
     const data = JSON.parse(content);
+    if (!SYNC_KEYS.some(k => data[k] !== undefined)) throw new Error('That backup is empty');
     SYNC_KEYS.forEach(k => { if (data[k] !== undefined) lsSet(k, data[k]); });
+    gistSaveToken(token); gistSaveId(id);
+    lsSet(GIST_REMOTE_KEY, json.updated_at || null);
 
     workouts       = lsGet('wt-plans')       || defaultData();
     completions    = lsGet('wt-done')        || {};
@@ -4559,8 +4699,12 @@ async function restoreFromGist() {
     showSyncBar('ok', '✓ Restored from GitHub');
     renderHeader(); renderMain();
     renderHistoryGistSection();
+    return true;
   } catch(e) {
     showSyncBar('err', '✗ Restore failed: ' + e.message);
+    return false;
+  } finally {
+    restoring = false;
   }
 }
 
@@ -4578,7 +4722,9 @@ function renderGistStatus() {
 
 function buildGistSection() {
   const wrap = document.createElement('div');
-  const token = gistToken();
+  // A token without a backup ID (an older connect that never finished) can't back
+  // anything up, so it's shown as not connected rather than silently doing nothing.
+  const token = gistToken() && gistId();
 
   if (!token) {
     const card = document.createElement('div'); card.className = 'gist-setup-wrap';
@@ -4601,9 +4747,9 @@ function buildGistSection() {
     const saveBtn = document.createElement('button'); saveBtn.className = 'gist-save-btn';
     saveBtn.textContent = 'CONNECT & SYNC';
     saveBtn.addEventListener('click', () => {
-      const t = inp.value.trim(); if (!t) return;
-      gistSaveToken(t);
-      syncToGist().then(() => renderHistoryGistSection());
+      const t = inp.value.trim(); if (!t || saveBtn.disabled) return;
+      saveBtn.disabled = true;   // a second tap used to create a second backup
+      connectGist(t).finally(() => { saveBtn.disabled = false; renderHistoryGistSection(); });
     });
     btnRow.appendChild(saveBtn);
 
@@ -4613,8 +4759,7 @@ function buildGistSection() {
     restoreBtn.title = 'Find & restore backup using token only';
     restoreBtn.addEventListener('click', () => {
       const t = inp.value.trim(); if (!t) { showSyncBar('err', 'Enter your token first'); return; }
-      gistSaveToken(t);
-      findAndRestoreGist(t);
+      findAndRestoreGist(t);   // saves the token only if the restore works
     });
     btnRow.appendChild(restoreBtn);
 
@@ -4665,7 +4810,12 @@ function buildGistSection() {
     const syncNowBtn = document.createElement('button'); syncNowBtn.className = 'gist-save-btn';
     syncNowBtn.style.fontSize = '15px';
     syncNowBtn.textContent = 'SYNC NOW';
-    syncNowBtn.addEventListener('click', () => syncToGist());
+    syncNowBtn.addEventListener('click', async () => {
+      if (await syncToGist() !== 'conflict') return;
+      if (confirm('The backup on GitHub was changed on another device since this phone last synced.\n\n' +
+                  'Replace it with this phone’s data? Sessions only on the other device will be gone from the backup.\n\n' +
+                  'Cancel, then Restore, brings the backup to this phone instead.')) syncToGist({ force: true });
+    });
     btns.appendChild(syncNowBtn);
 
     const restoreBtn = document.createElement('button'); restoreBtn.className = 'gist-restore-btn';
@@ -4679,7 +4829,7 @@ function buildGistSection() {
     disconnectBtn.style.marginTop = '8px';
     disconnectBtn.textContent = 'Disconnect';
     disconnectBtn.addEventListener('click', () => {
-      lsSet(GIST_TOKEN_KEY, null); lsSet(GIST_ID_KEY, null);
+      lsSet(GIST_TOKEN_KEY, null); lsSet(GIST_ID_KEY, null); lsSet(GIST_REMOTE_KEY, null);
       renderHistoryGistSection();
     });
     card.appendChild(disconnectBtn);
@@ -4740,7 +4890,7 @@ function renderHistoryGistSection() {
 function getPrevWeight(exerciseName) {
   const history = lsGet('wt-history') || {};
   const sessions = Object.values(history)
-    .filter(s => s.date !== TODAY_STR && s.exercises && s.exercises.length > 0)
+    .filter(s => s.date !== todayStr() && s.exercises && s.exercises.length > 0)
     .sort((a, b) => b.date.localeCompare(a.date));
   for (const session of sessions) {
     const ex = session.exercises.find(e => e.name === exerciseName);
@@ -4864,11 +5014,22 @@ function commitHistory(hist) {
 
 // The day's session, created from the plan if needed, with every plan exercise
 // present (so totals are right). Exercises added in History are kept as they are.
+// A new workout records the plan week it was logged in, so the week after a
+// deload can tell the lighter session apart from a bad one.
 function sessionFor(hist, ds, dayIdx) {
   const day = workouts[dayIdx];
-  const e = hist[ds] ? normSession(hist[ds]) : normSession({ date: ds, dayIdx, type: day.type, label: day.label, dayName: day.dayName,
-                                                              exercises: [], recDone: [] });
-  if (day.type === 'rest') { e.totalRec = (day.recovery || []).length; return e; }
+  let e = hist[ds];
+  if (e && (e.type === 'rest') !== (day.type === 'rest')) {
+    // Logged as the other kind of day (the plan changed since): keep what was
+    // logged, but take today's kind so the right fields exist.
+    Object.assign(e, { dayIdx, type: day.type, label: day.label, dayName: day.dayName });
+  }
+  if (!e) {
+    e = { date: ds, dayIdx, type: day.type, label: day.label, dayName: day.dayName, exercises: [], recDone: [] };
+    if (day.type !== 'rest') { const wi = weekInfo(calcWeek); e.week = wi.week; e.deload = wi.deload; }
+  }
+  normSession(e);
+  if (day.type === 'rest') { e.totalRec = (day.recovery || []).length; hist[ds] = e; return e; }
   const planned = day.exercises.map(px => {
     const x = e.exercises.find(y => y.id === px.id);
     return x || { id: px.id, name: px.name, sets: px.sets, reps: px.reps, weight: px.weight, log: [] };
@@ -5187,7 +5348,7 @@ function buildHistCard(dateStr, entry) {
   const mo    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
   const wd    = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()];
 
-  const isToday = dateStr === TODAY_STR;
+  const isToday = dateStr === todayStr();
   const card    = document.createElement('div'); card.className = 'hist-card';
   card.dataset.histDate = dateStr;
 
@@ -5363,7 +5524,7 @@ function buildHistCard(dateStr, entry) {
 function calcStreak(sortedDates) {
   if (!sortedDates.length) return 0;
   let streak = 0;
-  const today = new Date(TODAY_STR + 'T12:00:00');
+  const today = new Date(todayStr() + 'T12:00:00');
   for (let i = 0; i < sortedDates.length; i++) {
     const d    = new Date(sortedDates[i] + 'T12:00:00');
     const diff = Math.round((today - d) / 86400000);
@@ -5439,7 +5600,7 @@ function coachNutritionContext() {
   }
   const tg = intakeTargets();
   t += `DAILY TARGETS: ${fmtInt(tg.kcal)} kcal, protein ${tg.protein} g, carbs ${tg.carbs} g, fat ${tg.fat} g, fiber at least ${tg.fiber} g; limits: sodium ${fmtInt(tg.sodium)} mg, added sugar ${tg.addedSugar} g, saturated fat ${tg.satFat} g\n`;
-  const entries = intakeDay(TODAY_STR), tot = dayTotals(entries);
+  const entries = intakeDay(todayStr()), tot = dayTotals(entries);
   if (!entries.length) {
     t += `TODAY'S INTAKE: nothing logged yet.\n`;
   } else {
@@ -5453,8 +5614,8 @@ function coachNutritionContext() {
 }
 
 function buildCoachSystemPrompt() {
-  const day = workouts[TODAY_IDX];
-  const todayC = completions[TODAY_STR] || {};
+  const day = workouts[todayIdx()];
+  const todayC = completions[todayStr()] || {};
   const history = lsGet('wt-history') || {};
   const recentSessions = Object.values(history)
     .sort((a,b) => b.date.localeCompare(a.date))
@@ -5465,14 +5626,14 @@ function buildCoachSystemPrompt() {
   // The app's plan decides weights and deloads (planFor). The Coach explains them.
   prompt += `WEIGHTS — IMPORTANT: The app's 12-week plan decides working weights and deload weeks. Each exercise below lists the plan's target for this week and the reason, and — where reps were logged — what last session's reps say under double progression (add weight only once every set reached the top of the range). When asked what weight to use, explain those in your own words. Do not invent different numbers. Where reps weren't logged, you can't know whether they reached the top of the range — ask. If they want to deviate, explain the tradeoff and leave the choice to them.\n\n`;
 
-  prompt += `TODAY (${TODAY_STR}) — ${day.dayName} — ${day.type.toUpperCase()} DAY\n`;
+  prompt += `TODAY (${todayStr()}) — ${day.dayName} — ${day.type.toUpperCase()} DAY\n`;
   if (day.type !== 'rest' && day.exercises) {
     day.exercises.forEach(ex => {
       const done = Math.min(todayC[ex.id] || 0, ex.sets);
       const plan = planFor(ex.name);
       prompt += `  • ${ex.name}: ${ex.sets}×${ex.reps} @ ${ex.weight || 'bodyweight'} — ${done}/${ex.sets} sets done`;
       prompt += plan ? ` — plan target ${fmtW(plan.target)} (${plan.why})` : '';
-      const prog = progressionFor(ex, lastSessionFor(readHistory(), ex, TODAY_STR), calcWeek);
+      const prog = progressionFor(ex, lastSessionFor(readHistory(), ex, todayStr()), calcWeek);
       prompt += prog ? ` — ${prog.text}\n` : `\n`;
     });
   } else {
