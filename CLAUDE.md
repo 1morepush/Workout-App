@@ -47,7 +47,9 @@ Say in your reply which digit moved and why.
 - **Dates.** Never build a date key with `toISOString()` — it is UTC, and
   evening workouts were filed under tomorrow. Use `isoLocal()`. The date shown
   and the date stored for a day must come from the same function
-  (`viewDayDate()`).
+  (`viewDayDate()`). "Today" is read from the clock every time (`todayStr()`,
+  `todayIdx()`) — it used to be a constant set at page load, and a workout past
+  midnight or a PWA reopened next morning filed sets under the wrong day.
 - **Two copies of the same fact.** Logged sets used to be written separately to
   `wt-done` and `wt-history`, so History edits got undone and deleted sessions
   came back. Since v1.9 History (each exercise's per-set `log`) is the only
