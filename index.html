@@ -1692,6 +1692,16 @@ const EXERCISE_MUSCLES = {
 // Versions before 1.2 were assigned after the fact, from git history. From 1.2 on
 // they are the numbers the app actually showed.
 const RELEASES = [
+  { version: '1.9.2', name: 'Counting Plates', date: '2026-09-24',
+    headline: 'Numbers are read the way you wrote them, and the Coach gets the facts straight',
+    changes: [
+      'A weight like “2x30” or “135-145” no longer turns into 230 or 135145. The app now only reads a single number (with or without “lbs”), so it won’t offer a Use button for a number it made up.',
+      'Typing “2,300” for a target or a food now means two thousand three hundred, not 2.3. “1/2” serving means half, not 12.',
+      'Label scans and meal estimates keep each value’s own number: “140mg (6%)” is 140 mg of sodium, not 1406. A value the AI left out or garbled is left blank for you to fill in, instead of a confident 0.',
+      'The Coach no longer calls your bench press “bodyweight” when the card has no weight, and it sees your recent sets as you logged them — reps and weight, with deload weeks marked.',
+      'If you typed your own calorie target, the Coach is told it’s yours instead of explaining it with the formula’s reasoning for a different number.',
+      'A Coach reply that ran out of room is marked “cut off — ask it to continue” instead of passing as complete, and an empty one no longer blames your API key.',
+    ] },
   { version: '1.9.1', name: 'Graveyard Shift', date: '2026-09-24',
     headline: 'Late workouts stay on their day, and your backup can’t be overwritten by accident',
     changes: [
@@ -1842,6 +1852,22 @@ function lsSet(k,v) {
     }
     return false;
   }
+}
+
+// One way to read a number someone typed (or a model wrote). "2,300" is two
+// thousand three hundred and "3,5" is three and a half; "1/2" and "1 1/2" are
+// fractions. Anything else — a range, a sign, "2x25", two numbers — is not
+// guessed at: it comes back null. Stripping every non-digit used to turn
+// "2x25" into 225 and "1/2" into 12.
+function readNumber(v) {
+  if (typeof v === 'number') return isFinite(v) && v >= 0 ? v : null;
+  const s = String(v == null ? '' : v).trim();
+  let m;
+  if ((m = s.match(/^(\d+)\s+(\d+)\/(\d+)$/))) return +m[3] > 0 ? +m[1] + m[2] / m[3] : null;
+  if ((m = s.match(/^(\d+)\/(\d+)$/)))         return +m[2] > 0 ? m[1] / m[2] : null;
+  if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(s))       return +s.replace(/,/g, '');
+  if (/^(\d+([.,]\d+)?|[.,]\d+)$/.test(s))          return +s.replace(',', '.');
+  return null;
 }
 
 let workouts    = lsGet('wt-plans')  || defaultData();
@@ -2143,8 +2169,8 @@ function buildCard(ex) {
     lbl.textContent = (plan.deload ? 'Deload' : 'Plan') + ' · wk ' + plan.week;
     const val = document.createElement('span'); val.className = 'plan-val'; val.textContent = fmtW(plan.target);
     top.appendChild(lbl); top.appendChild(val);
-    const current = parseFloat(ex.weight);
-    if (!(isFinite(current) && Math.abs(current - plan.target) < 0.01)) {
+    const current = parseLbs(ex.weight);
+    if (!(current && Math.abs(current - plan.target) < 0.01)) {
       const use = document.createElement('button'); use.className = 'plan-use';
       use.dataset.usePlan = ex.id; use.textContent = 'Use';
       use.setAttribute('aria-label', 'Set weight to ' + fmtW(plan.target));
@@ -2162,7 +2188,7 @@ function buildCard(ex) {
     top.appendChild(mk('span', 'plan-lbl', 'Next'));
     if (prog.verdict === 'add' && prog.next) {
       top.appendChild(mk('span', 'plan-val', fmtW(prog.next)));
-      if (Math.abs((parseFloat(ex.weight) || 0) - prog.next) >= 0.01) {
+      if (Math.abs((parseLbs(ex.weight) || 0) - prog.next) >= 0.01) {
         const use = mk('button', 'plan-use', 'Use'); use.dataset.useNext = ex.id;
         use.setAttribute('aria-label', 'Set weight to ' + fmtW(prog.next));
         top.appendChild(use);
@@ -2678,8 +2704,8 @@ function getStrengthHistory(history, exerciseName) {
     .forEach(s => {
       const ex = s.exercises.find(e => e.name === exerciseName);
       if (ex && ex.done > 0 && ex.weight) {
-        const w = parseFloat(ex.weight);
-        if (!isNaN(w) && w > 0) data.push({date: s.date, weight: w});
+        const w = parseLbs(ex.weight);
+        if (w) data.push({date: s.date, weight: w});
       }
     });
   return data;
@@ -2958,8 +2984,8 @@ function renderCalcSheet() {
     startInp.placeholder = ex.bw ? 'BW' : String(ex.start);
     if (ex.bw) startInp.disabled = true;
     startInp.addEventListener('change', () => {
-      const v = parseFloat(startInp.value);
-      if (!isNaN(v)) { calcStarts[ex.name] = v; lsSet('wt-calc-starts', calcStarts); renderCalcSheet(); renderMain(); }
+      const v = parseLbs(startInp.value);
+      if (v) { calcStarts[ex.name] = v; lsSet('wt-calc-starts', calcStarts); renderCalcSheet(); renderMain(); }
     });
 
     const tgt = document.createElement('div');
@@ -3879,10 +3905,20 @@ function cleanNutrients(src, allowNull) {
   const n = {};
   NUTRIENTS.forEach(({ k }) => {
     const raw = src ? src[k] : null;
-    const v = typeof raw === 'string' ? parseFloat(raw.replace(/[^0-9.]/g, '')) : raw;
+    const v = typeof raw === 'string' ? modelNumber(raw) : raw;
     n[k] = (typeof v === 'number' && isFinite(v) && v >= 0) ? Math.round(v * 10) / 10 : (allowNull ? null : 0);
   });
   return n;
+}
+// A nutrient the model sent as text, e.g. "140mg (6%)" or "250 kcal (1046 kJ)".
+// The %DV and kJ figures are set aside; if exactly one number is left it is the
+// value, otherwise null (shown blank in the review sheet, not guessed). "<1g" is
+// what labels print for "less than 1", read as 0.
+function modelNumber(raw) {
+  const s = String(raw).replace(/\([^)]*\)/g, ' ');
+  if (/^\s*<\s*1(?![\d.,])/.test(s)) return 0;
+  const nums = [...s.matchAll(/(\d[\d.,]*)\s*(%|kj\b)?/gi)].filter(m => !m[2]);
+  return nums.length === 1 ? readNumber(nums[0][1].replace(/[.,]$/, '')) : null;
 }
 function cleanText(v, max) { return (v == null ? '' : String(v)).replace(/\s+/g, ' ').trim().slice(0, max); }
 function blankItem() { return { name: '', serving: '', servings: 1, n: cleanNutrients({}, true) }; }
@@ -3925,9 +3961,11 @@ async function aiEstimate(text, signal) {
   ], signal);
   const items = out && Array.isArray(out.items) ? out.items : [];
   if (!items.length) throw new Error('Couldn’t tell what that was. Try naming each food and roughly how much.');
-  return items.slice(0, 12).map(it => ({
+  // A value the model left out or garbled stays blank for the review sheet —
+  // not a confident 0 that would pass as "no sodium".
+  return items.filter(it => it && typeof it === 'object').slice(0, 12).map(it => ({
     name: cleanText(it.name, 80) || 'Food', serving: cleanText(it.serving, 60),
-    servings: 1, n: cleanNutrients(it.per_serving, false),
+    servings: 1, n: cleanNutrients(it.per_serving, true),
   }));
 }
 
@@ -4301,11 +4339,9 @@ function updateLive(i) {
   if (it && el) el.textContent = liveText(it);
 }
 
+// A typed amount in a sheet. A unit after it is fine ("185 lbs", "140 mg").
 function parseNum(v) {
-  const s = String(v).replace(',', '.').replace(/[^0-9.]/g, '');
-  if (s === '') return null;
-  const n = parseFloat(s);
-  return isFinite(n) && n >= 0 ? n : null;
+  return readNumber(String(v == null ? '' : v).replace(/\s*(lbs?|pounds?|mg|g|kcal|cal|%|in|inches|")\.?\s*$/i, ''));
 }
 
 document.getElementById('intakeOverlay').addEventListener('input', e => {
@@ -4968,7 +5004,13 @@ document.getElementById('bottomNav').addEventListener('click', e => {
 // Reps start as null ("not logged"), never a guess: the add-weight suggestion
 // must only fire on reps the user actually recorded.
 
-function parseLbs(w) { const n = parseFloat(String(w == null ? '' : w).replace(/[^0-9.]/g, '')); return isFinite(n) && n > 0 ? n : null; }
+// A weight chip's text as pounds: "135", "135 lbs", "22,5 lb". Anything else
+// ("2x30", "135-145", "BW+25", "20 kg") is null — no number rather than a wrong
+// one, so no Use button is offered for it.
+function parseLbs(w) {
+  const n = readNumber(String(w == null ? '' : w).replace(/\s*(lbs?|pounds?)\.?\s*$/i, ''));
+  return n > 0 ? n : null;
+}
 function readHistory() { return lsGet('wt-history') || {}; }
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -5587,12 +5629,21 @@ function formatSessionDate(isoStr) {
 function coachNutritionContext() {
   let t = `\nNUTRITION — IMPORTANT: The app sets these targets. Work from them and from what is left today; do not invent different targets. Foods marked (estimate) are guesses from a description, (label) were read from a nutrition label, (manual) the user typed in — say which when it matters.\n`;
   const b = bodyPlan();
+  // Targets the user typed win over the calculated ones. Say which is which, or
+  // the Coach explains the formula's number as if it were the one in use.
+  const typed = lsGet(INTAKE_TARGETS_STORE) || {};
+  const typedKeys = NUTRIENTS.filter(x => typed[x.k] != null);
   if (b && b.targets) {
     t += `BODY: ${fmtLb(b.lbs)} (weighed ${b.date})` + (b.bf != null ? `, ${b.bf}% body fat, goal ${b.goalBf}%` : '') +
-         (b.goalLbs != null && b.phase === 'cut' ? ` — goal weight ~${fmtLb(Math.round(b.goalLbs))}, about ${b.weeks} weeks at ~${Math.round(b.lossPerWk * 10) / 10} lb/week` : '') +
+         (b.goalLbs != null && b.phase === 'cut' ? ` — goal weight ~${fmtLb(Math.round(b.goalLbs))}` +
+           (typed.kcal == null ? `, about ${b.weeks} weeks at ~${Math.round(b.lossPerWk * 10) / 10} lb/week` : '') : '') +
          (b.phase === 'hold' ? ' — at goal, holding' : '') + `\n`;
     const trend = weightTrend(); if (trend) t += `WEIGH-INS: ${trend}\n`;
-    t += `WHY THESE CALORIES: ${b.why.kcal}\n`;
+    if (typed.kcal != null) {
+      t += `CALORIES: ${fmtInt(typed.kcal)} kcal is the user's own number, not calculated. The app calculated ${fmtInt(b.targets.kcal)}: ${b.why.kcal} Don't describe the user's number with that reasoning, and don't estimate a rate of loss for it.\n`;
+    } else {
+      t += `WHY THESE CALORIES: ${b.why.kcal}\n`;
+    }
   } else if (b && b.missing) {
     t += `BODY: ${fmtLb(b.lbs)} — not enough to calculate targets (no body fat % or height/age/sex), so targets come from the meal plan.\n`;
   } else {
@@ -5600,6 +5651,10 @@ function coachNutritionContext() {
   }
   const tg = intakeTargets();
   t += `DAILY TARGETS: ${fmtInt(tg.kcal)} kcal, protein ${tg.protein} g, carbs ${tg.carbs} g, fat ${tg.fat} g, fiber at least ${tg.fiber} g; limits: sodium ${fmtInt(tg.sodium)} mg, added sugar ${tg.addedSugar} g, saturated fat ${tg.satFat} g\n`;
+  if (typedKeys.length) {
+    t += `SET BY THE USER: ${typedKeys.map(x => x.label.toLowerCase()).join(', ')}. The other targets are the app's.` +
+         (typed.kcal != null && typedKeys.length < NUTRIENTS.filter(x => tg[x.k] != null).length ? ' The app does not rescale the other targets to the user\'s calorie number, so they may not add up to it.' : '') + `\n`;
+  }
   const entries = intakeDay(todayStr()), tot = dayTotals(entries);
   if (!entries.length) {
     t += `TODAY'S INTAKE: nothing logged yet.\n`;
@@ -5611,6 +5666,24 @@ function coachNutritionContext() {
       t += `  • ${e.name} (${src[e.src] || 'manual'}): ${fmtInt(x.kcal)} kcal, ${Math.round(x.protein)} g protein\n`; });
   }
   return t;
+}
+
+// How a lift's weight is described to the Coach. Only a bodyweight move is
+// "bodyweight"; a lift with no weight on its card says so, rather than claiming
+// a barbell bench press was done at bodyweight.
+function coachWeight(ex) {
+  const pe = planExercise(ex.name);
+  if (pe && pe.bw) return 'bodyweight';
+  return ex.weight ? String(ex.weight) : 'weight not set on the card';
+}
+// A logged exercise as the sets actually went: "8·7·6 at 100 lbs", or per set
+// when the weight changed. Reps not logged show as "?".
+function coachSets(x) {
+  const log = x.log || [], r = v => (v == null ? '?' : v);
+  if (!log.length) return 'no sets';
+  const lbs = [...new Set(log.map(l => l.lbs || null))];
+  if (lbs.length === 1) return log.map(l => r(l.reps)).join('·') + ' reps ' + (lbs[0] ? 'at ' + fmtW(lbs[0]) : '(weight not logged)');
+  return log.map(l => r(l.reps) + (l.lbs ? '×' + fmtW(l.lbs) : '')).join(', ');
 }
 
 function buildCoachSystemPrompt() {
@@ -5631,7 +5704,7 @@ function buildCoachSystemPrompt() {
     day.exercises.forEach(ex => {
       const done = Math.min(todayC[ex.id] || 0, ex.sets);
       const plan = planFor(ex.name);
-      prompt += `  • ${ex.name}: ${ex.sets}×${ex.reps} @ ${ex.weight || 'bodyweight'} — ${done}/${ex.sets} sets done`;
+      prompt += `  • ${ex.name}: ${ex.sets}×${ex.reps} @ ${coachWeight(ex)} — ${done}/${ex.sets} sets done`;
       prompt += plan ? ` — plan target ${fmtW(plan.target)} (${plan.why})` : '';
       const prog = progressionFor(ex, lastSessionFor(readHistory(), ex, todayStr()), calcWeek);
       prompt += prog ? ` — ${prog.text}\n` : `\n`;
@@ -5643,10 +5716,11 @@ function buildCoachSystemPrompt() {
   if (recentSessions.length > 0) {
     prompt += `\nRECENT SESSIONS (last ${recentSessions.length}):\n`;
     recentSessions.forEach(s => {
-      prompt += `  ${s.date} — ${s.type?.toUpperCase()} — ${s.doneSets||0}/${s.totalSets||0} sets\n`;
+      prompt += `  ${s.date} — ${s.type?.toUpperCase()} — ${s.doneSets||0}/${s.totalSets||0} sets${s.deload ? ' — deload week (65%, lighter on purpose)' : ''}\n`;
       if (s.exercises) {
         s.exercises.forEach(ex => {
-          if (ex.done > 0) prompt += `    • ${ex.name}: ${ex.weight || 'bw'} (${ex.done}/${ex.sets} sets)\n`;
+          const n = (ex.log || []).length;
+          if (n > 0) prompt += `    • ${ex.name}: ${coachSets(ex)} (${n}/${ex.sets} sets)\n`;
         });
       }
     });
@@ -5659,7 +5733,7 @@ function buildCoachSystemPrompt() {
     const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     prompt += `  ${days[i]} — ${w.label} (${w.type})\n`;
     if (w.exercises) w.exercises.forEach(ex => {
-      prompt += `    • ${ex.name}: ${ex.sets}×${ex.reps} @ ${ex.weight || 'bw'}\n`;
+      prompt += `    • ${ex.name}: ${ex.sets}×${ex.reps} @ ${coachWeight(ex)}\n`;
     });
   });
 
@@ -5872,16 +5946,24 @@ function renderCoachChat(container, key) {
         max_completion_tokens: 1536, reasoning_effort: 'low', include_reasoning: false,
       }),
     })
-    .then(r => r.json())
-    .then(data => {
+    .then(r => r.json().then(data => ({ status: r.status, data })))
+    .then(({ status, data }) => {
       typingEl.remove(); sendBtn.disabled = false;
-      const reply = data?.choices?.[0]?.message?.content;
+      const choice = data?.choices?.[0], reply = choice?.message?.content;
+      // gpt-oss spends reasoning from the same token budget, so a long answer can
+      // stop part-way ('length') — or before any answer at all.
+      const cut = choice?.finish_reason === 'length';
       if (reply) {
-        liveMsgs.push({ role: 'ai', text: reply });
+        const text = cut ? reply + '\n\n(Cut off — ask it to continue.)' : reply;
+        liveMsgs.push({ role: 'ai', text });
         saveToSession(liveMsgs);
-        appendCoachBubble(msgsEl, 'ai', reply);
+        appendCoachBubble(msgsEl, 'ai', text);
       } else {
-        appendCoachBubble(msgsEl, 'ai', '⚠️ ' + (data?.error?.message || 'No response. Check your API key.'));
+        const why = data?.error?.message ? data.error.message
+          : status === 401 ? 'Groq rejected your API key. Update it with Change Key.'
+          : cut ? 'The coach ran out of room before it could answer. Try a shorter question, or start a new chat.'
+          : 'No reply came back. Try again.';
+        appendCoachBubble(msgsEl, 'ai', '⚠️ ' + why);
       }
       msgsEl.scrollTop = msgsEl.scrollHeight;
     })
