@@ -107,7 +107,7 @@ chmod +x start.sh && ./start.sh
 
 **Android (Chrome):** Three-dot menu → "Add to Home Screen" / "Install App"
 
-Once installed, runs full-screen with no browser UI. Works offline after first load.
+Once installed, runs full-screen with no browser UI. Works offline after the first load: with signal it always opens the newest version, and with none (a basement gym) it opens the last one it loaded. Your data never needed signal — it's on the phone.
 
 ---
 
@@ -162,7 +162,7 @@ The AI is never called for real — tests fake Groq's responses — so no API ke
 | Architecture | Single HTML file — zero build step, zero dependencies |
 | Styling | CSS custom properties, dark warm theme (gold `#C9A84C` + rust `#C8552A`) |
 | Typography | Bebas Neue (headings) + Outfit (body) + DM Mono (data labels) |
-| PWA | Service worker (cache-first), `apple-mobile-web-app-capable` meta tags |
+| PWA | `sw.js` service worker (network-first, falls back to the saved copy offline), `manifest.json` + icons |
 | Storage | `localStorage` for all data persistence |
 | Sync | GitHub Gist API (optional, requires personal access token) |
 | AI | Groq API — `openai/v1/chat/completions` compatible (optional, free tier) |
@@ -174,7 +174,9 @@ The AI is never called for real — tests fake Groq's responses — so no API ke
 
 ```
 Workout-App/
-├── index.html    # Entire app — HTML, CSS, JS, and service worker in one file
+├── index.html    # The app — HTML, CSS and JS
+├── sw.js         # Service worker: keeps the app working with no signal
+├── manifest.json # For installing it (Add to Home Screen); with icon-192.png, icon-512.png, apple-touch-icon.png
 ├── CLAUDE.md     # How to work on this repo with Claude Code: the core rule, versioning, known pitfalls
 ├── start.sh      # Launches a local HTTP server (needed for service worker)
 ├── tests/        # Browser tests (Playwright) — dev-only, the app has no dependencies

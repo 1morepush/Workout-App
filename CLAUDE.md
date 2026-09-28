@@ -1,8 +1,10 @@
 # Working in this repository
 
-TRAIN is a personal workout, meal and intake tracker. The whole app is one file,
-`index.html` (HTML, CSS, JS and the service worker), with no build step and no
-dependencies. GitHub Pages deploys `main` automatically, so merging is shipping.
+TRAIN is a personal workout, meal and intake tracker. The app is `index.html`
+(HTML, CSS and JS), with no build step and no dependencies. Beside it are the
+files a browser only accepts as real files: `sw.js` (offline support),
+`manifest.json` and the icons (installing). GitHub Pages deploys `main`
+automatically, so merging is shipping.
 
 ## The rule the app is built around
 
@@ -76,6 +78,14 @@ Say in your reply which digit moved and why.
 - **Feedback loops.** Calibration assumes intake = the current target when meals
   aren't logged. After a calibration it must only use weigh-ins from that date on,
   or each Use lowers the target again (caught before shipping; tested).
+- **Offline.** The service worker used to be built inside `index.html` from a
+  `blob:` URL, which every browser rejects, so the app never worked offline
+  (the error was swallowed). It's `sw.js` now. It is network-first on purpose —
+  a cache-first worker would keep serving an old app after a merge — and it
+  only stores the app's own files and fonts, never Groq or GitHub traffic. A
+  new file the app needs offline goes in its `CORE` list; bump `CACHE` only if
+  the caching itself changes. `github.io` is shared with other apps, so never
+  clear caches or service workers that aren't this app's.
 - **Floating buttons.** The add/reset buttons reach ~185px up from the bottom.
   `#main` has matching bottom padding so the last card can scroll clear.
 

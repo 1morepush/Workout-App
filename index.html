@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TRAIN">
 <meta name="theme-color" content="#0D0C0A">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>TRAIN</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1729,6 +1731,14 @@ const EXERCISE_MUSCLES = {
 // Versions before 1.2 were assigned after the fact, from git history. From 1.2 on
 // they are the numbers the app actually showed.
 const RELEASES = [
+  { version: '1.10.1', name: 'Basement Gym', date: '2026-09-28',
+    headline: 'The app now really works with no signal',
+    changes: [
+      'Once you’ve opened it, the app opens and works with no signal — a basement gym, a plane. It always said it did, but the offline part was never actually switching on.',
+      'With signal it opens the newest version straight away, so updates don’t get stuck behind an old saved copy.',
+      'Add to Home Screen gets a proper icon on iPhone, and Chrome on Android can install it as an app.',
+      'Check for Updates only clears this app’s saved copy. It used to clear every app on the same github.io site too.',
+    ] },
   { version: '1.10', name: 'Re-Rack', date: '2026-09-28',
     headline: 'Log reps with one tap, and undo anything that clears your sets',
     changes: [
@@ -2750,15 +2760,13 @@ document.getElementById('app').addEventListener('touchend',e=>{
 //  PWA
 // ═══════════════════════════════════════════════════════════════
 
-(function(){
-  const m={name:'TRAIN',short_name:'TRAIN',start_url:'.',display:'standalone',background_color:'#0D0C0A',theme_color:'#0D0C0A',
-    icons:[{src:"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" fill="#0D0C0A"/><text x="96" y="142" font-family="Georgia,serif" font-size="114" font-weight="900" fill="#C9A84C" text-anchor="middle">T</text></svg>'),sizes:'192x192',type:'image/svg+xml'}]};
-  const lnk=document.createElement('link');lnk.rel='manifest';lnk.href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:'application/json'}));document.head.appendChild(lnk);
-  if ('serviceWorker' in navigator) {
-    const sw=["const C='train-v3';","self.addEventListener('install',()=>self.skipWaiting());","self.addEventListener('activate',e=>e.waitUntil(clients.claim()));","self.addEventListener('fetch',e=>{e.respondWith(caches.open(C).then(c=>c.match(e.request).then(h=>h||fetch(e.request).then(r=>{c.put(e.request,r.clone());return r;})).catch(()=>caches.match(e.request))));});"].join('\n');
-    navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'}))).catch(()=>{});
-  }
-})();
+// Offline support lives in sw.js, next to this file: a browser only accepts a
+// service worker from a real file on the site. (It used to be built here from a
+// blob: URL, which every browser rejects — the app never worked offline.) The
+// install manifest and icons are files too, for the same reason.
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js', { scope: './' }).catch(e => console.warn('Offline support unavailable:', e));
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  SVG BODY BUILDER
@@ -5112,13 +5120,15 @@ function buildGistSection() {
   updateBtn.addEventListener('click', async () => {
     updateBtn.textContent = 'Clearing cache…';
     try {
+      // Only this app's saved copy and worker: other apps share the github.io origin.
       if ('caches' in window) {
         const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
+        await Promise.all(keys.filter(k => k.startsWith('train-')).map(k => caches.delete(k)));
       }
       if (navigator.serviceWorker) {
+        const here = new URL('./', location.href).href;
         const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(r => r.unregister()));
+        await Promise.all(regs.filter(r => r.scope === here).map(r => r.unregister()));
       }
     } catch(e) {}
     location.reload(true);
