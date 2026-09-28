@@ -86,14 +86,16 @@ test.describe('History and Train stay in step', () => {
 });
 
 test.describe('logging reps on Train', () => {
-  test('sets start as “not logged”; type reps, Enter moves to the next set', async ({ app, page }) => {
+  test('sets start as “not logged”; # types reps, Enter moves to the next set', async ({ app, page }) => {
     await app.open();
     const card = firstCard(page);
     await card.locator('.dot').nth(0).click();
     await card.locator('.dot').nth(1).click();
     await expect(firstCard(page).locator('.reps-chip.is-empty')).toHaveCount(2);
+    await firstCard(page).locator('[data-rep-pick="close"]').click();   // v1.10: a new set opens the reps buttons
     await expect(firstCard(page).locator('.reps-hint')).toHaveText('tap to log');
     await firstCard(page).locator('.reps-chip').first().click();
+    await firstCard(page).locator('[data-rep-pick="type"]').click();    // the keyboard, for anything else
     await page.keyboard.type('8'); await page.keyboard.press('Enter');
     await expect(page.locator('.reps-input')).toBeFocused();          // moved on to set 2
     await page.keyboard.type('7'); await page.keyboard.press('Enter');
@@ -106,8 +108,7 @@ test.describe('logging reps on Train', () => {
   test('untapping a set drops its reps with it', async ({ app, page }) => {
     await app.open();
     for (let i = 0; i < 3; i++) await firstCard(page).locator('.dot').nth(i).click();
-    await firstCard(page).locator('.reps-chip').nth(2).click();
-    await page.keyboard.type('6'); await page.keyboard.press('Enter');
+    await firstCard(page).locator('[data-rep-pick="6"]').click();       // set 3's reps, one tap
     await firstCard(page).locator('.dot').nth(2).click();   // tapping the 3rd done dot takes it back
     expect((await app.storage('wt-history'))[TODAY].exercises[0].log).toHaveLength(2);
   });
