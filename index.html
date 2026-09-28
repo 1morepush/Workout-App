@@ -941,6 +941,32 @@ body::after {
 .reps-chip.is-empty { color: var(--text-sub); border-style: dashed; }
 .reps-input { border-color: var(--day-color); outline: none; cursor: text; }
 .reps-hint { font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-sub); }
+.reps-chip.is-picking { border-color: var(--day-color); border-style: solid; color: var(--day-color); }
+/* one-tap reps: a row of big number buttons instead of the keyboard */
+.rep-pick { margin: 8px 14px 0; padding: 9px 10px 10px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--day-color) 35%, transparent); background: var(--bg-inner); }
+.rep-pick-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.rep-pick-lbl { font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--day-color); }
+.rep-pick-last { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: .06em; color: var(--text-sub); }
+.rep-pick-btns { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.rep-pick-btn {
+  height: 44px; border-radius: 9px; border: 1px solid var(--border-md); background: var(--bg-card); color: var(--text);
+  font-family: 'DM Mono', monospace; font-size: 16px; cursor: pointer; padding: 0;
+}
+.rep-pick-btn:active { border-color: var(--day-color); color: var(--day-color); }
+.rep-pick-btn.is-top { border-color: color-mix(in srgb, var(--day-color) 45%, transparent); }
+.rep-pick-btn.alt { font-size: 11px; letter-spacing: .08em; color: var(--text-sub); }
+/* undo, after anything that removes logged sets */
+.undo-bar {
+  position: fixed; left: 84px; right: 14px; bottom: calc(84px + var(--safe-b)); z-index: 250;
+  display: none; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 11px 12px 11px 14px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border-md);
+  box-shadow: 0 6px 24px rgba(0,0,0,.45); font-size: 13px; color: var(--text);
+}
+.undo-bar.show { display: flex; }
+.undo-btn {
+  flex-shrink: 0; background: none; border: 1px solid var(--gold); color: var(--gold); border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .14em; padding: 7px 11px; cursor: pointer;
+}
 .next-row {
   margin: 6px 14px 2px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-md); background: var(--bg-inner);
 }
@@ -1299,6 +1325,7 @@ body::after {
 </style>
 </head>
 <body>
+<div id="undoBar" class="undo-bar" role="status" aria-live="polite"><span id="undoMsg"></span><button class="undo-btn" id="undoBtn">UNDO</button></div>
 <div id="syncBar" class="sync-bar busy">
   <span class="sync-dot"></span>
   <span id="syncMsg"></span>
@@ -1702,6 +1729,16 @@ const EXERCISE_MUSCLES = {
 // Versions before 1.2 were assigned after the fact, from git history. From 1.2 on
 // they are the numbers the app actually showed.
 const RELEASES = [
+  { version: '1.10', name: 'Re-Rack', date: '2026-09-28',
+    headline: 'Log reps with one tap, and undo anything that clears your sets',
+    changes: [
+      'Tap a set and a row of big number buttons opens under it — your rep range with a couple either side. One tap logs the reps; no keyboard. # still opens the keyboard for anything else, and ✕ closes it without logging.',
+      'The buttons show what you did on that set last time, so you know what to beat. Nothing is picked for you — skip it and the reps stay not logged.',
+      'Tap a reps chip to change that set’s reps the same way.',
+      'Undo: tapping an earlier dot, Reset, deleting an exercise, lowering its sets, or Delete Session in History now shows “… cleared · UNDO” for a few seconds. One tap brings every set back with its reps and weight.',
+      'Deleting an exercise no longer asks first — Undo covers it — and its logged sets go with it.',
+      'Tapping a set on and off no longer leaves an empty session behind that counted toward Sessions and your streak.',
+    ] },
   { version: '1.9.3', name: 'Rest Assured', date: '2026-09-28',
     headline: 'Fixes for the phone: a rest timer you can hear, editing that doesn’t fight you, nothing under the notch',
     changes: [
@@ -2202,13 +2239,15 @@ function buildCard(ex) {
     const rr = mk('div', 'reps-row');
     rr.appendChild(mk('span', 'reps-lbl', 'Reps'));
     dayLog.forEach((set, i) => {
-      const chip = mk('button', 'reps-chip' + (set.reps == null ? ' is-empty' : ''), set.reps == null ? '–' : String(set.reps));
+      const picking = repPick && repPick.exId === ex.id && repPick.i === i;
+      const chip = mk('button', 'reps-chip' + (set.reps == null ? ' is-empty' : '') + (picking ? ' is-picking' : ''), set.reps == null ? '–' : String(set.reps));
       chip.dataset.repsEx = ex.id; chip.dataset.repsI = String(i);
       chip.setAttribute('aria-label', 'Reps for set ' + (i + 1));
       rr.appendChild(chip);
     });
-    if (dayLog.some(set => set.reps == null)) rr.appendChild(mk('span', 'reps-hint', 'tap to log'));
+    if (dayLog.some(set => set.reps == null) && !(repPick && repPick.exId === ex.id)) rr.appendChild(mk('span', 'reps-hint', 'tap to log'));
     card.appendChild(rr);
+    if (repPick && repPick.exId === ex.id && repPick.i < dayLog.length) card.appendChild(buildRepPicker(ex, repPick.i, dayLog[repPick.i]));
   }
 
   const prog = progressionFor(ex, lastSessionFor(readHistory(), ex, viewDayStr()), calcWeek);
@@ -2393,10 +2432,15 @@ document.getElementById('main').addEventListener('click', e => {
     const exId=dot.dataset.ex, idx=parseInt(dot.dataset.i), ex=findEx(exId);
     if (!ex) return;
     const cur=getDone(exId), newN=idx<cur?idx:idx+1, wasAll=cur>=ex.sets;
+    const before = newN < cur ? undoSnapshot() : null;
     setDone(exId,newN);
     if (newN>cur && isLiveDay()) startTimer(exId);
+    // A new set opens the reps buttons for it; taking sets away closes them.
+    if (newN > cur) repPick = { exId, i: newN - 1 };
+    else if (repPick && repPick.exId === exId) repPick = null;
     replaceCard(ex,wasAll,newN);
     updateSetsBar();
+    if (before) offerUndo((cur - newN) + ' set' + (cur - newN === 1 ? '' : 's') + ' of ' + ex.name + ' cleared', before);
     return;
   }
 
@@ -2427,9 +2471,31 @@ document.getElementById('main').addEventListener('click', e => {
   const rec=e.target.closest('[data-rec]');
   if (rec && isLiveDay()) { setDone(rec.dataset.rec, getDone(rec.dataset.rec)?0:1); renderMain(); return; }
 
-  // reps chip — record reps for one set; Enter moves on to the next empty one
+  // reps buttons: one tap records that set's reps and closes the row
+  const rp = e.target.closest('[data-rep-pick]');
+  if (rp) {
+    const ex = findEx(rp.dataset.repEx), i = +rp.dataset.repI, v = rp.dataset.repPick;
+    if (!ex) return;
+    if (v === 'type') {   // anything outside the buttons: the keyboard, as before
+      repPick = null; replaceCard(ex, true, getDone(ex.id));
+      const chip = document.querySelector('[data-reps-ex="' + ex.id + '"][data-reps-i="' + i + '"]');
+      if (chip) editReps(chip);
+      return;
+    }
+    if (v !== 'close') setReps(viewDayStr(), ex.id, i, +v);
+    repPick = null; replaceCard(ex, true, getDone(ex.id));
+    return;
+  }
+
+  // reps chip — opens the reps buttons for that set (tap again to close)
   const rc = e.target.closest('[data-reps-ex]');
-  if (rc) { editReps(rc); return; }
+  if (rc) {
+    const ex = findEx(rc.dataset.repsEx), i = +rc.dataset.repsI;
+    if (!ex) return;
+    repPick = repPick && repPick.exId === ex.id && repPick.i === i ? null : { exId: ex.id, i };
+    replaceCard(ex, true, getDone(ex.id));
+    return;
+  }
 
   // Next "Use" — take the weight the double-progression rule earned
   const un = e.target.closest('[data-use-next]');
@@ -2484,6 +2550,73 @@ function updateSetsBar() {
   document.getElementById('setsCount').textContent=done+' / '+total;
 }
 
+// ─── ONE-TAP REPS ───────────────────────────────────────────────
+// Which set's reps buttons are open: { exId, i } or null. Nothing is ever
+// pre-selected — reps stay "not logged" until tapped, so double progression
+// never reads a guess.
+let repPick = null;
+
+// The buttons: the plan's rep range with two either side (5-8 → 3…10), or 1…12
+// when there's no range, and "#" for anything else via the keyboard.
+function repChoices(ex) {
+  const r = repRange(ex.reps);
+  if (!r) return { list: Array.from({ length: 12 }, (_, k) => k + 1), top: null };
+  const lo = Math.max(1, r[0] - 2), hi = Math.min(r[1] + 2, lo + 13);
+  return { list: Array.from({ length: hi - lo + 1 }, (_, k) => lo + k), top: r[1] };
+}
+function buildRepPicker(ex, i, set) {
+  const wrap = mk('div', 'rep-pick');
+  const hd = mk('div', 'rep-pick-hd');
+  hd.appendChild(mk('span', 'rep-pick-lbl', 'Set ' + (i + 1) + ' · reps'));
+  // What the same set did last time — history, labelled as such, never pre-filled.
+  const last = lastSessionFor(readHistory(), ex, viewDayStr()), ls = last && last.x.log[i];
+  if (ls && ls.reps != null) hd.appendChild(mk('span', 'rep-pick-last', 'last time: ' + ls.reps + (ls.lbs ? ' @ ' + fmtW(ls.lbs) : '')));
+  wrap.appendChild(hd);
+  const btns = mk('div', 'rep-pick-btns'), c = repChoices(ex);
+  const btn = (label, v, cls) => {
+    const b = mk('button', 'rep-pick-btn' + (cls ? ' ' + cls : ''), label);
+    b.dataset.repPick = v; b.dataset.repEx = ex.id; b.dataset.repI = String(i);
+    btns.appendChild(b); return b;
+  };
+  c.list.forEach(n => btn(String(n), String(n), n === c.top ? 'is-top' : '').setAttribute('aria-label', n + ' reps'));
+  btn('#', 'type', 'alt').setAttribute('aria-label', 'Type the reps');
+  btn('✕', 'close', 'alt').setAttribute('aria-label', 'Close without logging');
+  wrap.appendChild(btns);
+  if (set && set.reps != null) wrap.appendChild(mk('div', 'rep-pick-last', 'Now ' + set.reps + ' — tap a number to change it.'));
+  return wrap;
+}
+
+// ─── UNDO ───────────────────────────────────────────────────────
+// Anything that removes logged sets can be taken back for a few seconds: the
+// sets come back with their reps and weights. It restores through
+// commitHistory(), the one writer of logged sets.
+const UNDO_MS = 6000;
+let undoState = null;
+function undoSnapshot(withPlans) {
+  return { hist: JSON.stringify(readHistory()), plans: withPlans ? JSON.stringify(workouts) : null };
+}
+function offerUndo(msg, before) {
+  if (undoState) clearTimeout(undoState.t);
+  undoState = { before, t: setTimeout(hideUndo, UNDO_MS) };
+  document.getElementById('undoMsg').textContent = msg;
+  document.getElementById('undoBar').classList.add('show');
+}
+function hideUndo() {
+  if (undoState) clearTimeout(undoState.t);
+  undoState = null;
+  document.getElementById('undoBar').classList.remove('show');
+}
+document.getElementById('undoBtn').addEventListener('click', () => {
+  if (!undoState) return;
+  const b = undoState.before;
+  hideUndo();
+  if (b.plans) { workouts = JSON.parse(b.plans); saveAll(); }
+  commitHistory(JSON.parse(b.hist));
+  repPick = null;
+  renderHeader(); renderMain();
+  if (currentTab === 'history') renderHistory();
+});
+
 function editReps(chip) {
   const exId = chip.dataset.repsEx, i = +chip.dataset.repsI, ex = findEx(exId);
   if (!ex) return;
@@ -2537,16 +2670,22 @@ function saveEdit(id) {
   if (!form||!ex) return;
   const v=f=>{ const i=form.querySelector('[data-f="'+f+'"]'); return i?i.value.trim():''; };
   const newSets=Math.max(1,Math.min(20,parseInt(v('sets'))||ex.sets));
+  const cut = getDone(id) - newSets, before = cut > 0 ? undoSnapshot(true) : null;
   ex.name=v('name')||ex.name; ex.sets=newSets; ex.reps=v('reps')||ex.reps;
   ex.weight=v('weight'); ex.notes=v('notes');
-  if (getDone(id)>newSets) setDone(id,newSets);
+  if (cut > 0) setDone(id,newSets);
+  if (repPick && repPick.exId === id) repPick = null;
   saveAll(); editingId=null; renderMain(); renderHeader();
+  if (before) offerUndo(cut + ' set' + (cut === 1 ? '' : 's') + ' of ' + ex.name + ' cleared', before);
 }
 
 function deleteExercise(id) {
-  if (!confirm('Delete this exercise?')) return;
+  const ex = findEx(id), before = undoSnapshot(true);
   workouts[viewDay].exercises=workouts[viewDay].exercises.filter(e=>e.id!==id);
+  if (getDone(id) > 0) setDone(id, 0);   // its sets go with it, and come back with Undo
+  if (repPick && repPick.exId === id) repPick = null;
   saveAll(); editingId=null; renderMain(); renderHeader();
+  offerUndo((ex ? ex.name : 'Exercise') + ' deleted', before);
 }
 
 document.getElementById('fabAdd').addEventListener('click',()=>{
@@ -2575,14 +2714,17 @@ document.getElementById('addConfirm').addEventListener('click',()=>{
 document.getElementById('fabReset').addEventListener('click',()=>{
   const d = viewDayDate(), isToday = viewDayStr() === todayStr();
   document.getElementById('resetSub').textContent = 'Clear all logged sets for ' +
-    (isToday ? 'today' : DAYS_S[d.getDay()] + ', ' + MONTHS_S[d.getMonth()] + ' ' + d.getDate()) + '? This can’t be undone.';
+    (isToday ? 'today' : DAYS_S[d.getDay()] + ', ' + MONTHS_S[d.getMonth()] + ' ' + d.getDate()) + '?';
   document.getElementById('resetDialog').classList.add('open');
 });
 document.getElementById('resetNo').addEventListener('click', ()=>document.getElementById('resetDialog').classList.remove('open'));
 document.getElementById('resetYes').addEventListener('click',()=>{
+  const before = undoSnapshot(), had = !!readHistory()[viewDayStr()], d = viewDayDate();
   deleteSession(viewDayStr());   // History and the dot counts go together
   document.getElementById('resetDialog').classList.remove('open');
+  repPick = null;
   stopTimer(); renderHeader(); renderMain();
+  if (had) offerUndo((viewDayStr() === todayStr() ? 'Today' : MONTHS_S[d.getMonth()].charAt(0) + MONTHS_S[d.getMonth()].slice(1).toLowerCase() + ' ' + d.getDate()) + ' reset', before);
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -5123,6 +5265,12 @@ function projectDone(hist) {
 // The only writer of logged sets.
 function commitHistory(hist) {
   Object.keys(hist).forEach(ds => { if (!hist[ds]) delete hist[ds]; else normSession(hist[ds]); });
+  // A day with nothing logged isn't a session: tapping a dot on and off used to
+  // leave an empty one behind that counted toward Sessions and the streak.
+  Object.keys(hist).forEach(ds => {
+    const e = hist[ds];
+    if (e.type === 'rest' ? !e.recDone.length : !e.exercises.some(x => x.log.length)) delete hist[ds];
+  });
   lsSet('wt-history', hist);
   completions = projectDone(hist);
   lsSet('wt-done', completions);
@@ -5621,9 +5769,11 @@ function buildHistCard(dateStr, entry) {
         delSession.textContent = 'Delete Session';
         delSession.addEventListener('click', e => {
           e.stopPropagation();
+          const before = undoSnapshot();
           deleteSession(dateStr);   // the day's dots go too — it used to come back on the next tap
           card.remove();
           renderHeader(); renderMain();
+          offerUndo('Session on ' + fmtShortDate(dateStr) + ' deleted', before);
         });
         actions.appendChild(delSession);
       }

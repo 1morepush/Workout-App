@@ -21,11 +21,11 @@ test.describe('Train', () => {
   test('Reset names the day it will clear', async ({ app, page }) => {
     await app.open({ time: '2026-06-17T10:00:00-04:00' });   // Wednesday
     await page.click('#fabReset');
-    await expect(page.locator('#resetSub')).toHaveText('Clear all logged sets for today? This can’t be undone.');
+    await expect(page.locator('#resetSub')).toHaveText('Clear all logged sets for today?');
     await page.click('#resetNo');
     await page.click('.day-pill[data-day="1"]');
     await page.click('#fabReset');
-    await expect(page.locator('#resetSub')).toHaveText('Clear all logged sets for MON, JUN 15? This can’t be undone.');
+    await expect(page.locator('#resetSub')).toHaveText('Clear all logged sets for MON, JUN 15?');
   });
 
   test('the end of a rest beeps and says so, not just a vibration iPhones ignore', async ({ app, page }) => {
