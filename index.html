@@ -52,6 +52,11 @@ body::after {
 }
 
 /* ── APP SHELL ───────────────────────────────────── */
+/* iOS zooms the page into any text field smaller than 16px when it's tapped.
+   Only iOS has -webkit-touch-callout, so other browsers keep the smaller type. */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select { font-size: 16px !important; }
+}
 #app { min-height: 100dvh; display: flex; flex-direction: column; padding-bottom: calc(70px + var(--safe-b)); }
 
 /* ── STICKY HEADER SHELL ─────────────────────────── */
@@ -107,9 +112,9 @@ body::after {
 .pills-row::-webkit-scrollbar { display: none; }
 
 .day-pill {
-  flex-shrink: 0; background: none; cursor: pointer;
+  flex: 1 1 0; min-width: 0; background: none; cursor: pointer;   /* all seven fit a 390px phone */
   border: 1px solid var(--border-md); border-radius: 20px;
-  padding: 5px 13px 4px; display: flex; flex-direction: column;
+  padding: 5px 0 4px; display: flex; flex-direction: column;
   align-items: center; gap: 3px; transition: border-color .2s;
 }
 .dp-label {
@@ -260,6 +265,8 @@ body::after {
 .rest-btn.counting .rest-text { color: var(--day-color); }
 .rest-btn.warn     { background: rgba(200,85,42,.1); }
 .rest-btn.warn .rest-text { color: var(--rust); animation: blink .7s ease-in-out infinite; }
+.rest-btn.over { background: color-mix(in srgb, var(--day-color) 16%, transparent); }
+.rest-btn.over .rest-text { color: var(--text); }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
 
 /* ── INLINE EDIT FORM ────────────────────────────── */
@@ -301,7 +308,7 @@ body::after {
 
 /* ── REST DAY ────────────────────────────────────── */
 .rest-hero { text-align: center; padding: 24px 16px 10px; }
-.rest-icon { font-size: 36px; margin-bottom: 8px; }
+.rest-hero-icon { font-size: 36px; margin-bottom: 8px; }
 .rest-title {
   font-family: 'Bebas Neue', cursive; font-size: 46px;
   color: var(--muted-day); letter-spacing: .04em;
@@ -469,7 +476,7 @@ body::after {
 .gist-sm-btn:active { border-color: var(--day-color); color: var(--day-color); }
 
 /* ── HISTORY PAGE ────────────────────────────────── */
-#historyView { flex: 1; padding: 16px 14px 0; display: none; flex-direction: column; gap: 0; }
+#historyView { flex: 1; padding: calc(var(--safe-t) + 16px) 14px 0; display: none; flex-direction: column; gap: 0; }
 #historyView.show { display: flex; }
 
 .hist-header { margin-bottom: 16px; }
@@ -643,6 +650,7 @@ body::after {
 #coachView {
   flex: 1; display: none; flex-direction: column; overflow: hidden;
   position: fixed; top: 0; bottom: calc(56px + var(--safe-b)); left: 0; right: 0;
+  padding-top: var(--safe-t);   /* clear of the iPhone status bar */
   background: var(--bg);
 }
 #coachView.show { display: flex; }
@@ -701,6 +709,7 @@ body::after {
 .coach-bubble {
   padding: 11px 14px; border-radius: 14px; line-height: 1.55;
   font-family: 'Outfit', sans-serif; font-size: 14px;
+  white-space: pre-wrap; overflow-wrap: anywhere;   /* keep the reply's line breaks; long links wrap */
 }
 .coach-msg.user .coach-bubble {
   background: var(--day-color); color: #111; border-bottom-right-radius: 4px;
@@ -808,7 +817,7 @@ body::after {
 .coach-back-btn:active { border-color: var(--day-color); color: var(--day-color); }
 
 /* ── MEAL VIEW ───────────────────────────────────── */
-#mealView { flex: 1; padding: 16px 14px 20px; display: none; flex-direction: column; gap: 0; overflow-y: auto; }
+#mealView { flex: 1; padding: calc(var(--safe-t) + 16px) 14px 20px; display: none; flex-direction: column; gap: 0; overflow-y: auto; }
 #mealView.show { display: flex; }
 .meal-header { margin-bottom: 14px; flex-shrink: 0; }
 .meal-title { font-family: 'Bebas Neue', cursive; font-size: 42px; color: var(--text); letter-spacing: .04em; line-height: 1; }
@@ -966,7 +975,7 @@ body::after {
 /* Semantic colors are fixed, not --day-color: on leg days the accent is rust,
    which would make "over your limit" look identical to normal progress. */
 :root { --in-acc: #C9A84C; --in-over: #D9542C; --in-warn: #E3953A; --in-good: #6FAF7E; }
-#intakeView { flex: 1; padding: 16px 14px 24px; display: none; flex-direction: column; gap: 12px; }
+#intakeView { flex: 1; padding: calc(var(--safe-t) + 16px) 14px 24px; display: none; flex-direction: column; gap: 12px; }
 #intakeView.show { display: flex; }
 .in-hdr { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
 .in-gear {
@@ -1032,6 +1041,7 @@ body::after {
 .in-chip:active { border-color: var(--in-acc); color: var(--text); }
 
 .in-alert {
+  overflow-wrap: anywhere;   /* a long food name with no spaces wraps instead of running off the screen */
   background: color-mix(in srgb, var(--in-over) 7%, var(--bg-card));
   border: 1px solid color-mix(in srgb, var(--in-over) 35%, transparent);
   border-radius: 12px; padding: 13px 14px; display: flex; flex-direction: column; gap: 10px;
@@ -1317,7 +1327,7 @@ body::after {
   <main id="main"></main>
 
   <div class="fab-wrap" id="fabWrap">
-    <button class="fab fab-sm" id="fabReset" title="Reset today">&#8635;</button>
+    <button class="fab fab-sm" id="fabReset" title="Reset this day">&#8635;</button>
     <button class="fab"        id="fabAdd"   title="Add exercise">+</button>
   </div>
 
@@ -1408,7 +1418,7 @@ body::after {
 <div class="dialog-wrap" id="resetDialog">
   <div class="dialog">
     <div class="dialog-title">Reset Workout</div>
-    <div class="dialog-sub">Clear all logged sets for today?</div>
+    <div class="dialog-sub" id="resetSub">Clear all logged sets for today?</div>
     <div class="dialog-btns">
       <button class="btn-cancel" id="resetNo"  style="flex:1">Cancel</button>
       <button class="btn-del"    id="resetYes" style="flex:1">Reset</button>
@@ -1692,6 +1702,20 @@ const EXERCISE_MUSCLES = {
 // Versions before 1.2 were assigned after the fact, from git history. From 1.2 on
 // they are the numbers the app actually showed.
 const RELEASES = [
+  { version: '1.9.3', name: 'Rest Assured', date: '2026-09-28',
+    headline: 'Fixes for the phone: a rest timer you can hear, editing that doesn’t fight you, nothing under the notch',
+    changes: [
+      'When a rest ends the phone beeps and the button says REST OVER. Before, it only vibrated, and iPhones can’t vibrate from a web app.',
+      'Editing a past session in History works by touch — tapping a field or + Add used to close the card.',
+      'History, Meal, Intake and Coach no longer sit under the iPhone status bar, and tapping a text field no longer zooms the page in.',
+      'All seven day pills fit on the screen; Saturday was cut in half.',
+      'A Coach reply that arrives after you’ve switched chats goes into the chat you asked it in, instead of overwriting the one you’re reading. Clearing a chat while a reply is on its way now really clears it.',
+      'Coach replies keep their line breaks, so lists and paragraphs read properly, and long links wrap instead of running off the screen.',
+      'Reset says which day it will clear — it clears the day you’re looking at, which isn’t always today.',
+      'The add and reset buttons no longer float over History after deleting a session there.',
+      'After a restore, History shows the restored sessions straight away. “Last backed up” shows when it was, instead of nothing.',
+      'Reset all in Targets updates the numbers behind the sheet at once, and a past weigh-in you’re retyping shows blank instead of “null”.',
+    ] },
   { version: '1.9.2', name: 'Counting Plates', date: '2026-09-24',
     headline: 'Numbers are read the way you wrote them, and the Coach gets the facts straight',
     changes: [
@@ -1939,6 +1963,36 @@ function startTimer(exId) {
   updateRestBtn();
   timer.iv = setInterval(tickTimer, 250);
   navigator.vibrate && navigator.vibrate(40);
+  primeRestSound();
+}
+
+// The end of a rest has to be noticeable without looking. Vibration alone was
+// silent on iPhones (no navigator.vibrate), so it also beeps. iOS only lets a
+// page play sound once a tap has started it, so the tap that starts the timer
+// unlocks it.
+let restAudio = null;
+function primeRestSound() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    restAudio = restAudio || new AC();
+    if (restAudio.state === 'suspended') restAudio.resume();
+  } catch (e) { restAudio = null; }
+}
+function restBeep() {
+  if (!restAudio) return;
+  try {
+    const t = restAudio.currentTime;
+    [0, 0.25, 0.5].forEach(o => {
+      const osc = restAudio.createOscillator(), g = restAudio.createGain();
+      osc.frequency.value = 880;
+      g.gain.setValueAtTime(0.0001, t + o);
+      g.gain.exponentialRampToValueAtTime(0.3, t + o + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + o + 0.18);
+      osc.connect(g); g.connect(restAudio.destination);
+      osc.start(t + o); osc.stop(t + o + 0.2);
+    });
+  } catch (e) { /* no sound is better than a crash mid-workout */ }
 }
 
 function tickTimer() {
@@ -1947,8 +2001,16 @@ function tickTimer() {
   if (remain === timer.secs) return;   // no visible change, skip the DOM write
   timer.secs = remain;
   if (remain <= 0) {
+    const exId = timer.forExId;
     stopTimer();
     navigator.vibrate && navigator.vibrate([80,40,80,40,120]);
+    restBeep();
+    // Say so on the button for a few seconds, instead of quietly resetting it.
+    const btn = document.querySelector('[data-rest="' + exId + '"]'), span = btn && btn.querySelector('.rest-text');
+    if (span) {
+      span.textContent = 'REST OVER'; btn.classList.add('over');
+      setTimeout(() => { if (!timer.active || timer.forExId !== exId) resetRestBtn(exId); }, 4000);
+    }
     return;
   }
   updateRestBtn();
@@ -1974,7 +2036,7 @@ function updateRestBtn() {
   const m = Math.floor(timer.secs/60), s = timer.secs%60;
   const span = btn.querySelector('.rest-text');
   if (span) span.textContent = m + ':' + String(s).padStart(2,'0');
-  btn.classList.add('counting');
+  btn.classList.add('counting'); btn.classList.remove('over');
   btn.classList.toggle('warn', timer.secs <= 10);
 }
 
@@ -1983,7 +2045,7 @@ function resetRestBtn(exId) {
   if (!btn) return;
   const span = btn.querySelector('.rest-text');
   if (span) span.textContent = 'REST 90S';
-  btn.classList.remove('counting','warn');
+  btn.classList.remove('counting','warn','over');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2049,12 +2111,15 @@ function renderMain() {
   const main = document.getElementById('main');
   const fab  = document.getElementById('fabWrap');
   main.textContent = '';
+  // Train can redraw while another tab is showing (a restore, a deleted session);
+  // its add/reset buttons must only appear on Train itself.
+  const onTrain = main.style.display !== 'none';
 
   if (day.type === 'rest') {
     fab.style.display = 'none';
     renderRestDay(main, day);
   } else {
-    fab.style.display = 'flex';
+    fab.style.display = onTrain ? 'flex' : 'none';
     renderWorkoutDay(main, day);
   }
 }
@@ -2277,7 +2342,7 @@ function renderRestDay(container, day) {
   const isToday = isLiveDay();
 
   const hero = document.createElement('div'); hero.className='rest-hero';
-  const ico  = document.createElement('div'); ico.className='rest-icon';  ico.textContent='🌿';
+  const ico  = document.createElement('div'); ico.className='rest-hero-icon';  ico.textContent='🌿';
   const ttl  = document.createElement('div'); ttl.className='rest-title'; ttl.textContent='FULL REST';
   const sub  = document.createElement('div'); sub.className='rest-sub';   sub.textContent='Recover. Eat. Sleep.';
   hero.appendChild(ico); hero.appendChild(ttl); hero.appendChild(sub);
@@ -2506,7 +2571,13 @@ document.getElementById('addConfirm').addEventListener('click',()=>{
   closeAdd(); renderHeader(); renderMain();
 });
 
-document.getElementById('fabReset').addEventListener('click',()=>document.getElementById('resetDialog').classList.add('open'));
+// Reset clears the day being viewed, which may not be today — the dialog names it.
+document.getElementById('fabReset').addEventListener('click',()=>{
+  const d = viewDayDate(), isToday = viewDayStr() === todayStr();
+  document.getElementById('resetSub').textContent = 'Clear all logged sets for ' +
+    (isToday ? 'today' : DAYS_S[d.getDay()] + ', ' + MONTHS_S[d.getMonth()] + ' ' + d.getDate()) + '? This can’t be undone.';
+  document.getElementById('resetDialog').classList.add('open');
+});
 document.getElementById('resetNo').addEventListener('click', ()=>document.getElementById('resetDialog').classList.remove('open'));
 document.getElementById('resetYes').addEventListener('click',()=>{
   deleteSession(viewDayStr());   // History and the dot counts go together
@@ -4192,14 +4263,15 @@ function renderIntakeSheet() {
     if (past.length) {
       const wrap = mk('div', 'in-wi');
       wrap.appendChild(mk('span', 'ef-lbl', 'Past weigh-ins'));
-      const odd = weighInOutliers(d.weighins);
+      // A reading being retyped is blank for a moment: it isn't "off", it's unfinished.
+      const odd = weighInOutliers(Object.fromEntries(Object.entries(d.weighins).filter(([, v]) => v != null)));
       past.forEach(ds => {
         const row = mk('div', 'in-wi-row' + (odd.has(ds) ? ' is-odd' : ''));
         const [y, m, dd] = ds.split('-').map(Number);
         row.appendChild(mk('span', 'in-wi-date', ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(y, m - 1, dd).getDay()] + ' ' + fmtShortDate(ds)));
         if (odd.has(ds)) row.appendChild(mk('span', 'in-flag hot', 'Looks off?'));
         const inp = mk('input', 'ef-inp mono'); inp.inputMode = 'decimal'; inp.dataset.wi = ds;
-        inp.value = String(d.weighins[ds]); inp.setAttribute('aria-label', 'Weight on ' + ds);
+        inp.value = d.weighins[ds] == null ? '' : String(d.weighins[ds]); inp.setAttribute('aria-label', 'Weight on ' + ds);
         row.appendChild(inp);
         const del = sheetBtn('in-item-x', '✕', 'wi-del'); del.dataset.date = ds; del.setAttribute('aria-label', 'Delete weigh-in on ' + ds);
         row.appendChild(del);
@@ -4492,7 +4564,7 @@ document.getElementById('intakeOverlay').addEventListener('click', e => {
   if (act === 'tgt-reset') {
     lsSet(INTAKE_TARGETS_STORE, {});
     scheduleSyncToGist();
-    renderIntakeSheet();
+    renderIntakeSheet(); renderIntake();   // it's saved at once, so the view behind must show it too
     return;
   }
 });
@@ -4734,7 +4806,9 @@ async function restoreFromGist(token = gistToken(), id = gistId()) {
     lsSet(GIST_SYNC_KEY, new Date().toISOString());
     showSyncBar('ok', '✓ Restored from GitHub');
     renderHeader(); renderMain();
-    renderHistoryGistSection();
+    // Restore is started from History, so redraw the whole tab — its list and
+    // stats showed the pre-restore data until you left and came back.
+    if (currentTab === 'history') renderHistory(); else renderHistoryGistSection();
     return true;
   } catch(e) {
     showSyncBar('err', '✗ Restore failed: ' + e.message);
@@ -4744,8 +4818,9 @@ async function restoreFromGist(token = gistToken(), id = gistId()) {
   }
 }
 
-function renderGistStatus() {
-  const el = document.getElementById('gistStatusVal');
+// `el` lets the History card fill its row before the row is on the page — it
+// used to look the element up too early and always show nothing.
+function renderGistStatus(el = document.getElementById('gistStatusVal')) {
   if (!el) return;
   const last = lsGet(GIST_SYNC_KEY);
   if (last) {
@@ -4824,7 +4899,7 @@ function buildGistSection() {
     syncLbl.textContent = 'Last backed up';
     const syncVal = document.createElement('div'); syncVal.id = 'gistStatusVal';
     syncVal.style.cssText = 'font-family:"DM Mono",monospace;font-size:11px;color:var(--text)';
-    renderGistStatus();
+    renderGistStatus(syncVal);
     syncRow.appendChild(syncLbl); syncRow.appendChild(syncVal);
     card.appendChild(syncRow);
 
@@ -5557,7 +5632,14 @@ function buildHistCard(dateStr, entry) {
 
     rebuildExRows();
     card.appendChild(exList);
-    card.addEventListener('click', () => card.classList.toggle('expanded'));
+    // Tapping the card opens and closes it — but not a tap on a field or button
+    // inside it: that closed the card mid-edit, so a past session couldn't be
+    // edited by touch.
+    card.addEventListener('click', e => {
+      if (e.target.closest('input, textarea, select, button, .hist-add-ex-row')) return;
+      if (editing && exList.contains(e.target)) return;
+      card.classList.toggle('expanded');
+    });
   }
 
   return card;
@@ -5842,6 +5924,10 @@ function renderCoachChat(container, key) {
   const sessionId = coachActiveSessionId;
   // for a brand-new chat, messages come from an in-memory array until first save
   let liveMsgs = sessionId === 'new' ? [] : (coachGetSession(sessionId)?.messages || []);
+  // This chat's own id, fixed once it's saved. Saving by whatever chat happens to
+  // be open wrote a late reply into a different chat, overwriting it.
+  let chatId = sessionId;
+  let generation = 0;   // bumped by Clear: a reply to a cleared question is dropped
 
   // header
   const header = document.createElement('div'); header.className = 'coach-header';
@@ -5855,7 +5941,8 @@ function renderCoachChat(container, key) {
   const clearBtn = document.createElement('button'); clearBtn.className = 'coach-clear-btn';
   clearBtn.textContent = 'Clear';
   clearBtn.addEventListener('click', () => {
-    if (sessionId !== 'new') coachUpdateSession(sessionId, { messages: [], preview: '' });
+    if (chatId !== 'new') coachUpdateSession(chatId, { messages: [], preview: '' });
+    generation++;
     liveMsgs = [];
     msgsEl.innerHTML = '';
     renderCoachEmpty(msgsEl);
@@ -5894,7 +5981,7 @@ function renderCoachChat(container, key) {
 
   function saveToSession(msgs) {
     const preview = msgs.find(m => m.role === 'user')?.text?.slice(0, 60) || '';
-    if (coachActiveSessionId === 'new') {
+    if (chatId === 'new') {
       const newSession = {
         id: 'session_' + Date.now(),
         createdAt: new Date().toISOString(),
@@ -5904,9 +5991,10 @@ function renderCoachChat(container, key) {
       const all = coachGetSessions();
       all.unshift(newSession);
       coachSaveSessions(all);
-      coachActiveSessionId = newSession.id;
+      chatId = newSession.id;
+      if (coachActiveSessionId === 'new') coachActiveSessionId = chatId;   // still on this chat
     } else {
-      coachUpdateSession(coachActiveSessionId, { messages: msgs, preview });
+      coachUpdateSession(chatId, { messages: msgs, preview });
     }
   }
 
@@ -5921,6 +6009,7 @@ function renderCoachChat(container, key) {
     liveMsgs.push({ role: 'user', text });
     saveToSession(liveMsgs);
     appendCoachBubble(msgsEl, 'user', text);
+    const asked = generation;
 
     // typing indicator
     const typingEl = document.createElement('div'); typingEl.className = 'coach-msg ai';
@@ -5953,10 +6042,11 @@ function renderCoachChat(container, key) {
       // gpt-oss spends reasoning from the same token budget, so a long answer can
       // stop part-way ('length') — or before any answer at all.
       const cut = choice?.finish_reason === 'length';
+      if (asked !== generation) return;   // the chat was cleared while waiting
       if (reply) {
         const text = cut ? reply + '\n\n(Cut off — ask it to continue.)' : reply;
         liveMsgs.push({ role: 'ai', text });
-        saveToSession(liveMsgs);
+        saveToSession(liveMsgs);   // into this chat, even if another is open now
         appendCoachBubble(msgsEl, 'ai', text);
       } else {
         const why = data?.error?.message ? data.error.message
