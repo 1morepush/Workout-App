@@ -83,7 +83,9 @@ test('Check for Updates clears only this app’s saved copy, not other apps on g
   await openServed(page, s.url);
   await page.evaluate(() => caches.open('other-app').then(c => c.put('/other', new Response('x'))));
   await page.click('.nav-tab[data-tab="history"]');
-  await page.getByRole('button', { name: 'CHECK FOR UPDATES' }).click();
+  // It clears, then reloads the page. Wait for that reload — checking straight
+  // after the tap raced it (the page was mid-navigation on a slower CI machine).
+  await Promise.all([page.waitForEvent('load'), page.getByRole('button', { name: 'CHECK FOR UPDATES' }).click()]);
   await page.waitForFunction(() => typeof renderMain === 'function');
   expect(await page.evaluate(() => caches.keys())).toContain('other-app');
   await stop(s);
